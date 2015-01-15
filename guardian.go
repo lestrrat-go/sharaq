@@ -18,6 +18,7 @@ import (
 type Guardian struct {
 	TransformerURL  string
 	Bucket          *s3.Bucket
+	Cache           *URLCache
 	processingMutex *sync.Mutex
 	processing      map[uint64]bool
 }
@@ -44,6 +45,7 @@ func NewGuardian(c GuardianConfig) (*Guardian, error) {
 	g := &Guardian{
 		TransformerURL:  c.TransformerURL(),
 		Bucket:          s.Bucket(c.BucketName()),
+		Cache:           NewURLCache("127.0.0.1:11211"),
 		processingMutex: &sync.Mutex{},
 		processing:      make(map[uint64]bool),
 	}
@@ -61,9 +63,6 @@ func (g *Guardian) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "What, what, what?", 400)
 	}
 }
-
-// Very silly locking, and storage. fix me later
-var crc64Table = crc64.MakeTable(crc64.ISO)
 
 func (g *Guardian) MarkProcessing(u *url.URL) bool {
 	h := crc64.New(crc64Table)
@@ -135,12 +134,13 @@ func (g *Guardian) HandleStore(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// good, done. save it to S3
-			path := "/"+preset+u.Path
+			path := "/" + preset + u.Path
 			log.Printf("Sending PUT to S3 %s...", path)
 			err = g.Bucket.PutReader(path, res.Body, res.ContentLength, res.Header.Get("Content-Type"), s3.PublicRead, s3.Options{})
 			defer res.Body.Close()
 			if err != nil {
 				errCh <- err
+				return
 			}
 		}(wg, xformURL, preset, errCh)
 	}
@@ -200,6 +200,10 @@ func (g *Guardian) HandleDelete(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				errCh <- err
 			}
+
+			// fallthrough here regardless, because it's better to lose the
+			// cache than to accidentally have one linger
+			g.Cache.Delete(MakeCacheKey(preset, u.String()))
 		}(wg, preset, errCh)
 	}
 

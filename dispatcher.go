@@ -7,10 +7,13 @@ import (
 )
 
 type Dispatcher struct {
+	Cache *URLCache
 }
 
 func NewDispatcher() (*Dispatcher, error) {
-	return &Dispatcher{}, nil
+	return &Dispatcher{
+		Cache: NewURLCache("127.0.0.1:11211"),
+	}, nil
 }
 
 func (d *Dispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -37,8 +40,11 @@ func (d *Dispatcher) HandleFetch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	device := r.FormValue("device")
-	if device == "" {
-		w.Header().Add("Location", u.String())
+
+	cacheKey := MakeCacheKey(device, rawValue)
+
+	if cachedURL := d.Cache.Lookup(cacheKey); cachedURL != "" {
+		w.Header().Add("Location", cachedURL)
 		w.WriteHeader(301)
 		return
 	}
@@ -56,6 +62,7 @@ func (d *Dispatcher) HandleFetch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if res.StatusCode == 200 {
+		go d.Cache.Set(cacheKey, specificURL)
 		log.Printf("HEAD request to %s was success. Redirecting to proper location", specificURL)
 		w.Header().Add("Location", specificURL)
 		w.WriteHeader(301)
@@ -68,7 +75,7 @@ func (d *Dispatcher) HandleFetch(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		guardianURL := &url.URL{
 			Scheme: "http",
-			Host: "127.0.0.1:9090",
+			Host:   "127.0.0.1:9090",
 		}
 		query := url.Values{}
 		query.Set("url", u.String())
