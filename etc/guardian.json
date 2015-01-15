@@ -1,0 +1,6 @@
+{
+    "TransformerURL": "http://127.0.0.1:8080",
+    "BucketName": "ix.peatix.com",
+    "AccessKey": "FIX ME",
+    "SecretKey": "FIX ME"
+}
