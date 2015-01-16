@@ -36,9 +36,15 @@ func (c *Config) ParseFile(f string) error {
 		return err
 	}
 
-	c.OptDispatcherAddr = "0.0.0.0:9090"
-	c.OptGuardianAddr = "0.0.0.0:9191"
-	c.OptMemcachedAddr = []string{"127.0.0.1:11211"}
+	if c.OptDispatcherAddr == "" {
+		c.OptDispatcherAddr = "0.0.0.0:9090"
+	}
+	if c.OptGuardianAddr == "" {
+		c.OptGuardianAddr = "0.0.0.0:9191"
+	}
+	if len(c.OptMemcachedAddr) < 1 {
+		c.OptMemcachedAddr = []string{"127.0.0.1:11211"}
+	}
 	return nil
 }
 
@@ -53,6 +59,7 @@ func (c Config) TransformerURL() string  { return c.OptTransformerURL }
 type Server struct {
 	config *Config
 	cache  *URLCache
+	transformer *Transformer
 }
 
 func NewServer(c *Config) *Server {
@@ -64,12 +71,14 @@ func NewServer(c *Config) *Server {
 }
 
 func (s *Server) Run() error {
+	s.transformer = NewTransformer(s)
+
 	g, err := NewGuardian(s)
 	if err != nil {
 		return err
 	}
 
-	d, err := NewDispatcher(s)
+	d, err := NewDispatcher(s,g)
 	if err != nil {
 		return err
 	}

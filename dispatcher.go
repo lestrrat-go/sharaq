@@ -9,17 +9,19 @@ import (
 type Dispatcher struct {
 	listenAddr string
 	cache      *URLCache
+	guardian   *Guardian
 }
 
 type DispatcherConfig interface {
 	DispatcherAddr() string
 }
 
-func NewDispatcher(s *Server) (*Dispatcher, error) {
+func NewDispatcher(s *Server, g *Guardian) (*Dispatcher, error) {
 	c := s.config
 	return &Dispatcher{
 		listenAddr: c.DispatcherAddr(),
 		cache: s.cache,
+		guardian: g,
 	}, nil
 }
 
@@ -58,6 +60,7 @@ func (d *Dispatcher) HandleFetch(w http.ResponseWriter, r *http.Request) {
 	cacheKey := MakeCacheKey(device, rawValue)
 
 	if cachedURL := d.cache.Lookup(cacheKey); cachedURL != "" {
+		log.Printf("Cached entry found for %s:%s -> %s", device, rawValue, cachedURL)
 		w.Header().Add("Location", cachedURL)
 		w.WriteHeader(301)
 		return
@@ -75,6 +78,7 @@ func (d *Dispatcher) HandleFetch(w http.ResponseWriter, r *http.Request) {
 		goto FALLBACK
 	}
 
+	log.Printf("HEAD request for %s returns %d", specificURL, res.StatusCode)
 	if res.StatusCode == 200 {
 		go d.cache.Set(cacheKey, specificURL)
 		log.Printf("HEAD request to %s was success. Redirecting to proper location", specificURL)
@@ -84,29 +88,7 @@ func (d *Dispatcher) HandleFetch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("Requesting Guardian to store resized images...")
-	go func() {
-		guardianURL := &url.URL{
-			Scheme: "http",
-			Host:   "127.0.0.1:9090",
-		}
-		query := url.Values{}
-		query.Set("url", u.String())
-		guardianURL.RawQuery = query.Encode()
-		req, err := http.NewRequest("PUT", guardianURL.String(), nil)
-		if err != nil {
-			log.Printf("Failed to create request for %s: %s", guardianURL.String(), err)
-			return
-		}
-		res, err := http.DefaultClient.Do(req)
-		if err != nil {
-			log.Printf("Failed to PUT to %s: %s", guardianURL.String(), err)
-			return
-		}
-		if res.StatusCode != 200 {
-			log.Printf("Failed to PUT to %s: %d", guardianURL.String(), res.StatusCode)
-			return
-		}
-	}()
+	go d.guardian.transformAllAndStore(u)
 
 FALLBACK:
 	w.Header().Add("Location", u.String())

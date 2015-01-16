@@ -16,12 +16,12 @@ import (
 )
 
 type Guardian struct {
-	TransformerURL  string
 	Bucket          *s3.Bucket
 	Cache           *URLCache
 	listenAddr      string
 	processingMutex *sync.Mutex
 	processing      map[uint64]bool
+	transformer     *Transformer
 }
 
 type GuardianConfig interface {
@@ -29,7 +29,6 @@ type GuardianConfig interface {
 	BucketName() string
 	GuardianAddr() string
 	SecretKey() string
-	TransformerURL() string
 }
 
 var presets = map[string]string{
@@ -46,12 +45,12 @@ func NewGuardian(s *Server) (*Guardian, error) {
 
 	s3o := s3.New(auth, aws.APNortheast)
 	g := &Guardian{
-		TransformerURL:  c.TransformerURL(),
 		Bucket:          s3o.Bucket(c.BucketName()),
 		Cache:           s.cache,
 		listenAddr:      c.GuardianAddr(),
 		processingMutex: &sync.Mutex{},
 		processing:      make(map[uint64]bool),
+		transformer:     s.transformer,
 	}
 
 	return g, nil
@@ -95,6 +94,41 @@ func (g *Guardian) UnmarkProcessing(u *url.URL) {
 	delete(g.processing, k)
 }
 
+func (g *Guardian) transformAllAndStore(u *url.URL) chan error {
+
+	// Transformation is completely done by the transformer, so just
+	// hand it over to it
+	wg := &sync.WaitGroup{}
+	errCh := make(chan error, len(presets))
+	for preset, rule := range presets {
+		wg.Add(1)
+		go func(wg *sync.WaitGroup, t *Transformer, preset string, rule string, errCh chan error) {
+			defer wg.Done()
+
+			res, err := t.Transform(rule, u.String())
+			if err != nil {
+				errCh <- err
+				return
+			}
+
+			// good, done. save it to S3
+			path := "/" + preset + u.Path
+			log.Printf("Sending PUT to S3 %s...", path)
+			err = g.Bucket.PutReader(path, res.content, res.size, res.contentType, s3.PublicRead, s3.Options{})
+			defer res.content.Close()
+			if err != nil {
+				errCh <- err
+				return
+			}
+		}(wg, g.transformer, preset, rule, errCh)
+	}
+
+	wg.Wait()
+	close(errCh)
+
+	return errCh
+}
+
 // HandleStore accepts PUT requests to create resized images and
 // store them on S3
 func (g *Guardian) HandleStore(w http.ResponseWriter, r *http.Request) {
@@ -121,42 +155,7 @@ func (g *Guardian) HandleStore(w http.ResponseWriter, r *http.Request) {
 	defer g.UnmarkProcessing(u)
 
 	start := time.Now()
-	// Transformation is completely done by the transformer, so just
-	// hand it over to it
-	wg := &sync.WaitGroup{}
-	errCh := make(chan error, len(presets))
-	for preset, rule := range presets {
-		xformURL := g.TransformerURL + "/" + rule + "/" + u.String()
-		wg.Add(1)
-		go func(wg *sync.WaitGroup, targetURL string, preset string, errCh chan error) {
-			defer wg.Done()
-
-			log.Printf("Resizing image via %s...", targetURL)
-			res, err := http.Get(targetURL)
-			if err != nil {
-				errCh <- err
-				return
-			}
-
-			if res.StatusCode != 200 {
-				errCh <- fmt.Errorf("url: %s, got %d", targetURL, res.StatusCode)
-				return
-			}
-
-			// good, done. save it to S3
-			path := "/" + preset + u.Path
-			log.Printf("Sending PUT to S3 %s...", path)
-			err = g.Bucket.PutReader(path, res.Body, res.ContentLength, res.Header.Get("Content-Type"), s3.PublicRead, s3.Options{})
-			defer res.Body.Close()
-			if err != nil {
-				errCh <- err
-				return
-			}
-		}(wg, xformURL, preset, errCh)
-	}
-
-	wg.Wait()
-	close(errCh)
+	errCh := g.transformAllAndStore(u)
 
 	buf := &bytes.Buffer{}
 	for err := range errCh {
