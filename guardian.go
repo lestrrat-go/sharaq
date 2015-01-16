@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"sync"
@@ -59,10 +60,25 @@ func NewGuardian(s *Server) (*Guardian, error) {
 	return g, nil
 }
 
-func (g *Guardian) Run(doneCh chan struct{}) {
-	defer func() { doneCh <- struct{}{} }()
+func (g *Guardian) Run(doneWg *sync.WaitGroup, exitCond *sync.Cond) {
+	defer doneWg.Done()
+
+	srv := &http.Server{Addr: g.listenAddr, Handler: g}
+	ln, err := net.Listen("tcp", g.listenAddr)
+	if err != nil {
+		log.Printf("Error listening on %s: %s", g.listenAddr, err)
+		return
+	}
+	go func(ln net.Listener, exitCond *sync.Cond) {
+		defer recover()
+		exitCond.L.Lock()
+		exitCond.Wait()
+		exitCond.L.Unlock()
+		ln.Close()
+	}(ln, exitCond)
+
 	log.Printf("Guardian listening on %s", g.listenAddr)
-	http.ListenAndServe(g.listenAddr, g)
+	srv.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)})
 }
 
 func (g *Guardian) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -151,7 +167,7 @@ func (g *Guardian) HandleView(w http.ResponseWriter, r *http.Request) {
 
 	vars := struct {
 		Images map[string]string
-	} {
+	}{
 		Images: make(map[string]string),
 	}
 	for name := range presets {
