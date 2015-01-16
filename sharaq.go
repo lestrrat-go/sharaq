@@ -2,6 +2,7 @@ package sharaq
 
 import (
 	"encoding/json"
+	"fmt"
 	"hash/crc64"
 	"log"
 	"net"
@@ -10,6 +11,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/lestrrat/go-server-starter/listener"
 )
 
 var crc64Table *crc64.Table
@@ -51,6 +54,16 @@ func (c *Config) ParseFile(f string) error {
 		c.OptMemcachedAddr = []string{"127.0.0.1:11211"}
 	}
 	c.filename = f
+
+	// Normalize shorthand form to full form
+	if c.OptDispatcherAddr[0] == ':' {
+		c.OptDispatcherAddr = "0.0.0.0" + c.OptDispatcherAddr
+	}
+
+	if c.OptGuardianAddr[0] == ':' {
+		c.OptGuardianAddr = "0.0.0.0" + c.OptGuardianAddr
+	}
+
 	return nil
 }
 
@@ -134,6 +147,51 @@ LOOP:
 	}
 
 	return nil
+}
+
+// start_server support utility
+func makeListener(listenAddr string) (net.Listener, error) {
+	var ln net.Listener
+	if listener.GetPortsSpecification() == "" {
+		l, err := net.Listen("tcp", listenAddr)
+		if err != nil {
+			return nil, fmt.Errorf("error listening on %s: %s", listenAddr, err)
+		}
+		ln = l
+	} else {
+		ts, err := listener.Ports()
+		if err != nil {
+			return nil, fmt.Errorf("error parsing start_server ports: %s", err)
+		}
+
+		for _, t := range ts {
+			switch t.(type) {
+			case listener.TCPListener:
+				tl := t.(listener.TCPListener)
+				if listenAddr == fmt.Sprintf("%s:%d", tl.Addr, tl.Port) {
+					ln, err = t.Listen()
+					if err != nil {
+						return nil, fmt.Errorf("failed to listen to start_server port: %s", err)
+					}
+					break
+				}
+			case listener.UnixListener:
+				ul := t.(listener.UnixListener)
+				if listenAddr == ul.Path {
+					ln, err = t.Listen()
+					if err != nil {
+						return nil, fmt.Errorf("failed to listen to start_server port: %s", err)
+					}
+					break
+				}
+			}
+		}
+
+		if ln == nil {
+			return nil, fmt.Errorf("could not find a matching listen addr between server_starter and DispatcherAddr")
+		}
+	}
+	return ln, nil
 }
 
 // This is used in HTTP handlers to mimic+work like http.Server

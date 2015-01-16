@@ -46,11 +46,12 @@ func (d *Dispatcher) Run(doneWg *sync.WaitGroup, exitCond *sync.Cond) {
 	defer doneWg.Done()
 
 	srv := &http.Server{Addr: d.listenAddr, Handler: d}
-	ln, err := net.Listen("tcp", d.listenAddr)
+	ln, err := makeListener(d.listenAddr)
 	if err != nil {
-		log.Printf("Error listening on %s: %s", d.listenAddr, err)
+		log.Printf("Error binding to listen address: %s", err)
 		return
 	}
+
 	go func(ln net.Listener, exitCond *sync.Cond) {
 		defer recover()
 		exitCond.L.Lock()
@@ -59,7 +60,7 @@ func (d *Dispatcher) Run(doneWg *sync.WaitGroup, exitCond *sync.Cond) {
 		ln.Close()
 	}(ln, exitCond)
 
-	log.Printf("Dispatcher listening on port %s", d.listenAddr)
+	log.Printf("Dispatcher listening on %s", d.listenAddr)
 	srv.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)})
 }
 
