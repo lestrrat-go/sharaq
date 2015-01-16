@@ -66,11 +66,12 @@ func (g *Guardian) Run(doneWg *sync.WaitGroup, exitCond *sync.Cond) {
 	defer doneWg.Done()
 
 	srv := &http.Server{Addr: g.listenAddr, Handler: g}
-	ln, err := net.Listen("tcp", g.listenAddr)
+	ln, err := makeListener(g.listenAddr)
 	if err != nil {
-		log.Printf("Error listening on %s: %s", g.listenAddr, err)
+		log.Printf("Error binding to listen address: %s", err)
 		return
 	}
+
 	go func(ln net.Listener, exitCond *sync.Cond) {
 		defer recover()
 		exitCond.L.Lock()
