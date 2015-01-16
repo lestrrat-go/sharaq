@@ -37,9 +37,9 @@ func NewTransformer(s *Server) *Transformer {
 }
 
 type TransformResult struct {
-	content io.ReadCloser
+	content     io.ReadCloser
 	contentType string
-	size int64
+	size        int64
 }
 
 func (t *Transformer) Transform(options string, u string) (*TransformResult, error) {
@@ -52,7 +52,7 @@ func (t *Transformer) Transform(options string, u string) (*TransformResult, err
 		return nil, fmt.Errorf("error fetching remote image: %v", err)
 	}
 
-	return &TransformResult{ res.Body, res.Header.Get("Content-Type"), res.ContentLength}, nil
+	return &TransformResult{res.Body, res.Header.Get("Content-Type"), res.ContentLength}, nil
 }
 
 type TransformingTransport struct {

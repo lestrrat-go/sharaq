@@ -12,7 +12,7 @@ type URLCache struct {
 	Memcache *memcache.Client
 }
 
-func NewURLCache(servers ...string) *URLCache{
+func NewURLCache(servers ...string) *URLCache {
 	return &URLCache{
 		Memcache: memcache.New(servers...),
 	}
