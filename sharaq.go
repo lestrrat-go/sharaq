@@ -26,7 +26,6 @@ type Config struct {
 	OptGuardianAddr   string   `json:"GuardianAddr"`   // listen on this address. default is 0.0.0.0:9191
 	OptMemcachedAddr  []string `json:"MemcachedAddr"`
 	OptSecretKey      string   `json:"SecretKey"`
-	OptTransformerURL string   `json:"TransformerURL"`
 	OptWhitelist      []string `json:"Whitelist"`
 }
 
@@ -61,7 +60,6 @@ func (c Config) DispatcherAddr() string  { return c.OptDispatcherAddr }
 func (c Config) GuardianAddr() string    { return c.OptGuardianAddr }
 func (c Config) MemcachedAddr() []string { return c.OptMemcachedAddr }
 func (c Config) SecretKey() string       { return c.OptSecretKey }
-func (c Config) TransformerURL() string  { return c.OptTransformerURL }
 func (c Config) Whitelist() []string     { return c.OptWhitelist }
 
 type Server struct {

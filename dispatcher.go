@@ -11,6 +11,7 @@ import (
 
 type Dispatcher struct {
 	listenAddr string
+	bucketName string
 	whitelist  []*regexp.Regexp
 	cache      *URLCache
 	guardian   *Guardian
@@ -34,6 +35,7 @@ func NewDispatcher(s *Server, g *Guardian) (*Dispatcher, error) {
 
 	return &Dispatcher{
 		listenAddr: c.DispatcherAddr(),
+		bucketName: c.BucketName(),
 		cache:      s.cache,
 		guardian:   g,
 		whitelist:  whitelist,
@@ -113,9 +115,7 @@ func (d *Dispatcher) HandleFetch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// create the proper url
-	base := "http://ix.peatix.com.s3.amazonaws.com"
-
-	specificURL := base + "/" + device + u.Path
+	specificURL := "http://" + d.bucketName + ".s3.amazonaws.com/" + device + u.Path
 
 	log.Printf("Making HEAD request to %s...", specificURL)
 	res, err := http.Head(specificURL)

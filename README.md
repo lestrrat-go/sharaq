@@ -4,17 +4,13 @@ Image Transformer
 
 ## Example
 
-`http://ix.peatix.com/smartphone/event/XXXX/cover-XXXX.jpg`
+`http://sharaq.yourcompany.com/preset/event/XXXX/cover-XXXX.jpg`
 
 ## Presets
 
 |Name        | Description       |
 |:----------:|:-----------------:|
-| raw        | no transformation |
-| smartphone | generic smartphone preset. max width = 600, max height = 1000 |
-| tablet     | generic table preset. max width = 1000, max height = 2000 |
-| iphone6    | max width = 750, max height = 1334 |
-| iphone5    | max width = 640, max height = 1136 |
+| TBD        | TBD               |
 
 ## Components
 
