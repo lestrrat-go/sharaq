@@ -2,8 +2,10 @@ package sharaq
 
 import (
 	"log"
+	"net"
 	"net/http"
 	"net/url"
+	"sync"
 )
 
 type Dispatcher struct {
@@ -20,16 +22,30 @@ func NewDispatcher(s *Server, g *Guardian) (*Dispatcher, error) {
 	c := s.config
 	return &Dispatcher{
 		listenAddr: c.DispatcherAddr(),
-		cache: s.cache,
-		guardian: g,
+		cache:      s.cache,
+		guardian:   g,
 	}, nil
 }
 
-func (d *Dispatcher) Run(doneCh chan struct{}) {
-	defer func() { doneCh <- struct{}{} }()
+func (d *Dispatcher) Run(doneWg *sync.WaitGroup, exitCond *sync.Cond) {
+	defer doneWg.Done()
+
+	srv := &http.Server{Addr: d.listenAddr, Handler: d}
+	ln, err := net.Listen("tcp", d.listenAddr)
+	if err != nil {
+		log.Printf("Error listening on %s: %s", d.listenAddr, err)
+		return
+	}
+	go func(ln net.Listener, exitCond *sync.Cond) {
+		defer recover()
+		exitCond.L.Lock()
+		exitCond.Wait()
+		exitCond.L.Unlock()
+		ln.Close()
+	}(ln, exitCond)
 
 	log.Printf("Dispatcher listening on port %s", d.listenAddr)
-	http.ListenAndServe(d.listenAddr, d)
+	srv.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)})
 }
 
 func (d *Dispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {

@@ -4,8 +4,12 @@ import (
 	"encoding/json"
 	"hash/crc64"
 	"log"
+	"net"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
+	"time"
 )
 
 var crc64Table *crc64.Table
@@ -15,6 +19,7 @@ func init() {
 }
 
 type Config struct {
+	filename          string
 	OptAccessKey      string   `json:"AccessKey"`
 	OptBucketName     string   `json:"BucketName"`
 	OptDispatcherAddr string   `json:"DispatcherAddr"` // listen on this address. default is 0.0.0.0:9090
@@ -45,6 +50,7 @@ func (c *Config) ParseFile(f string) error {
 	if len(c.OptMemcachedAddr) < 1 {
 		c.OptMemcachedAddr = []string{"127.0.0.1:11211"}
 	}
+	c.filename = f
 	return nil
 }
 
@@ -57,8 +63,8 @@ func (c Config) SecretKey() string       { return c.OptSecretKey }
 func (c Config) TransformerURL() string  { return c.OptTransformerURL }
 
 type Server struct {
-	config *Config
-	cache  *URLCache
+	config      *Config
+	cache       *URLCache
 	transformer *Transformer
 }
 
@@ -66,37 +72,81 @@ func NewServer(c *Config) *Server {
 	log.Printf("Using url cache at %v", c.MemcachedAddr())
 	return &Server{
 		config: c,
-		cache:  NewURLCache(c.MemcachedAddr()...),
 	}
 }
 
 func (s *Server) Run() error {
-	s.transformer = NewTransformer(s)
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	defer signal.Stop(sigCh)
 
-	g, err := NewGuardian(s)
-	if err != nil {
-		return err
-	}
+	termLoopCh := make(chan struct{}, 1) // we keep restarting as long as there are no messages on this channel
 
-	d, err := NewDispatcher(s,g)
-	if err != nil {
-		return err
-	}
-
-	wg := &sync.WaitGroup{}
-	wg.Add(2)
-
-	doneCh := make(chan struct{})
-	go g.Run(doneCh)
-	go d.Run(doneCh)
-	go func() {
-		for _ = range doneCh {
-			wg.Done()
+LOOP:
+	for {
+		select {
+		case <-termLoopCh:
+			break LOOP
+		default:
+			// no op, but required to not block on the above case
 		}
-	}()
 
-	wg.Wait()
-	close(doneCh)
+		s.cache = NewURLCache(s.config.MemcachedAddr()...)
+		s.transformer = NewTransformer(s)
+
+		g, err := NewGuardian(s)
+		if err != nil {
+			return err
+		}
+
+		d, err := NewDispatcher(s, g)
+		if err != nil {
+			return err
+		}
+
+		exitCond := sync.NewCond(&sync.RWMutex{})
+		go func(c *sync.Cond) {
+			sig := <-sigCh
+			c.Broadcast()
+
+			switch sig {
+			case syscall.SIGHUP:
+				log.Printf("Reload request received. Shutting down for reload...")
+				newConfig := &Config{}
+				if err := newConfig.ParseFile(s.config.filename); err != nil {
+					log.Printf("Failed to reload config file %s: %s", s.config.filename, err)
+				} else {
+					s.config = newConfig
+				}
+			default:
+				log.Printf("Termination request received. Shutting down...")
+				close(termLoopCh)
+			}
+		}(exitCond)
+
+		wg := &sync.WaitGroup{}
+		wg.Add(2)
+
+		go g.Run(wg, exitCond)
+		go d.Run(wg, exitCond)
+
+		wg.Wait()
+	}
 
 	return nil
+}
+
+// This is used in HTTP handlers to mimic+work like http.Server
+type tcpKeepAliveListener struct {
+	*net.TCPListener
+}
+
+func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
+	tc, err := ln.AcceptTCP()
+	if err != nil {
+		return
+	}
+	tc.SetKeepAlive(true)
+	tc.SetKeepAlivePeriod(3 * time.Minute)
+	return tc, nil
 }
