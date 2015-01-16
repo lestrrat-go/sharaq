@@ -18,7 +18,8 @@ import (
 )
 
 type Guardian struct {
-	Bucket          *s3.Bucket
+	bucket          *s3.Bucket
+	bucketName      string
 	Cache           *URLCache
 	listenAddr      string
 	processingMutex *sync.Mutex
@@ -49,7 +50,8 @@ func NewGuardian(s *Server) (*Guardian, error) {
 
 	s3o := s3.New(auth, aws.APNortheast)
 	g := &Guardian{
-		Bucket:          s3o.Bucket(c.BucketName()),
+		bucket:          s3o.Bucket(c.BucketName()),
+		bucketName:      c.BucketName(),
 		Cache:           s.cache,
 		listenAddr:      c.GuardianAddr(),
 		processingMutex: &sync.Mutex{},
@@ -135,7 +137,7 @@ func (g *Guardian) transformAllAndStore(u *url.URL) chan error {
 			// good, done. save it to S3
 			path := "/" + preset + u.Path
 			log.Printf("Sending PUT to S3 %s...", path)
-			err = g.Bucket.PutReader(path, res.content, res.size, res.contentType, s3.PublicRead, s3.Options{})
+			err = g.bucket.PutReader(path, res.content, res.size, res.contentType, s3.PublicRead, s3.Options{})
 			defer res.content.Close()
 			if err != nil {
 				errCh <- err
@@ -171,7 +173,7 @@ func (g *Guardian) HandleView(w http.ResponseWriter, r *http.Request) {
 		Images: make(map[string]string),
 	}
 	for name := range presets {
-		vars.Images[name] = "http://ix.peatix.com.s3.amazonaws.com/" + name + u.Path
+		vars.Images[name] = "http://" + g.bucketName + ".s3.amazonaws.com/" + name + u.Path
 	}
 
 	t, err := template.New("sharaq-view").Parse(`
@@ -273,7 +275,7 @@ func (g *Guardian) HandleDelete(w http.ResponseWriter, r *http.Request) {
 			defer wg.Done()
 			path := "/" + preset + u.Path
 			log.Printf(" + DELETE S3 entry %s\n", path)
-			err = g.Bucket.Del(path)
+			err = g.bucket.Del(path)
 			if err != nil {
 				errCh <- err
 			}
