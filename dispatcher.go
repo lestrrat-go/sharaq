@@ -5,11 +5,13 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sync"
 )
 
 type Dispatcher struct {
 	listenAddr string
+	whitelist  []*regexp.Regexp
 	cache      *URLCache
 	guardian   *Guardian
 }
@@ -20,10 +22,21 @@ type DispatcherConfig interface {
 
 func NewDispatcher(s *Server, g *Guardian) (*Dispatcher, error) {
 	c := s.config
+
+	whitelist := make([]*regexp.Regexp, len(s.config.Whitelist()))
+	for i, pat := range s.config.Whitelist() {
+		re, err := regexp.Compile(pat)
+		if err != nil {
+			return nil, err
+		}
+		whitelist[i] = re
+	}
+
 	return &Dispatcher{
 		listenAddr: c.DispatcherAddr(),
 		cache:      s.cache,
 		guardian:   g,
+		whitelist:  whitelist,
 	}, nil
 }
 
@@ -62,6 +75,23 @@ func (d *Dispatcher) HandleFetch(w http.ResponseWriter, r *http.Request) {
 	rawValue := r.FormValue("url")
 	if rawValue == "" {
 		http.Error(w, "Bad url", 500)
+		return
+	}
+
+	allowed := false
+	if len(d.whitelist) == 0 {
+		allowed = true
+	} else {
+		for _, pat := range d.whitelist {
+			if pat.MatchString(rawValue) {
+				allowed = true
+				break
+			}
+		}
+	}
+
+	if !allowed {
+		http.Error(w, "Specified url not allowed", 403)
 		return
 	}
 

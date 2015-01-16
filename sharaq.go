@@ -27,6 +27,7 @@ type Config struct {
 	OptMemcachedAddr  []string `json:"MemcachedAddr"`
 	OptSecretKey      string   `json:"SecretKey"`
 	OptTransformerURL string   `json:"TransformerURL"`
+	OptWhitelist      []string `json:"Whitelist"`
 }
 
 func (c *Config) ParseFile(f string) error {
@@ -61,6 +62,7 @@ func (c Config) GuardianAddr() string    { return c.OptGuardianAddr }
 func (c Config) MemcachedAddr() []string { return c.OptMemcachedAddr }
 func (c Config) SecretKey() string       { return c.OptSecretKey }
 func (c Config) TransformerURL() string  { return c.OptTransformerURL }
+func (c Config) Whitelist() []string     { return c.OptWhitelist }
 
 type Server struct {
 	config      *Config
