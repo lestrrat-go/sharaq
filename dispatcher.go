@@ -7,13 +7,27 @@ import (
 )
 
 type Dispatcher struct {
-	Cache *URLCache
+	listenAddr string
+	cache      *URLCache
 }
 
-func NewDispatcher() (*Dispatcher, error) {
+type DispatcherConfig interface {
+	DispatcherAddr() string
+}
+
+func NewDispatcher(s *Server) (*Dispatcher, error) {
+	c := s.config
 	return &Dispatcher{
-		Cache: NewURLCache("127.0.0.1:11211"),
+		listenAddr: c.DispatcherAddr(),
+		cache: s.cache,
 	}, nil
+}
+
+func (d *Dispatcher) Run(doneCh chan struct{}) {
+	defer func() { doneCh <- struct{}{} }()
+
+	log.Printf("Dispatcher listening on port %s", d.listenAddr)
+	http.ListenAndServe(d.listenAddr, d)
 }
 
 func (d *Dispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -43,7 +57,7 @@ func (d *Dispatcher) HandleFetch(w http.ResponseWriter, r *http.Request) {
 
 	cacheKey := MakeCacheKey(device, rawValue)
 
-	if cachedURL := d.Cache.Lookup(cacheKey); cachedURL != "" {
+	if cachedURL := d.cache.Lookup(cacheKey); cachedURL != "" {
 		w.Header().Add("Location", cachedURL)
 		w.WriteHeader(301)
 		return
@@ -62,7 +76,7 @@ func (d *Dispatcher) HandleFetch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if res.StatusCode == 200 {
-		go d.Cache.Set(cacheKey, specificURL)
+		go d.cache.Set(cacheKey, specificURL)
 		log.Printf("HEAD request to %s was success. Redirecting to proper location", specificURL)
 		w.Header().Add("Location", specificURL)
 		w.WriteHeader(301)
@@ -70,8 +84,6 @@ func (d *Dispatcher) HandleFetch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("Requesting Guardian to store resized images...")
-
-	// Grr, the resized image does not
 	go func() {
 		guardianURL := &url.URL{
 			Scheme: "http",

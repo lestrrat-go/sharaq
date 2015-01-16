@@ -1,4 +1,6 @@
 {
+    "DispatcherAddr": "0.0.0.0:9090",
+    "GuardianAddr": "0.0.0.0:9191",
     "TransformerURL": "http://127.0.0.1:8080",
     "BucketName": "ix.peatix.com",
     "AccessKey": "FIX ME",

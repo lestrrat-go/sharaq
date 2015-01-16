@@ -19,15 +19,17 @@ type Guardian struct {
 	TransformerURL  string
 	Bucket          *s3.Bucket
 	Cache           *URLCache
+	listenAddr      string
 	processingMutex *sync.Mutex
 	processing      map[uint64]bool
 }
 
 type GuardianConfig interface {
-	TransformerURL() string
-	BucketName() string
 	AccessKey() string
+	BucketName() string
+	GuardianAddr() string
 	SecretKey() string
+	TransformerURL() string
 }
 
 var presets = map[string]string{
@@ -35,22 +37,30 @@ var presets = map[string]string{
 	"tablet":     "1000x2000,fit",
 }
 
-func NewGuardian(c GuardianConfig) (*Guardian, error) {
+func NewGuardian(s *Server) (*Guardian, error) {
+	c := s.config
 	auth := aws.Auth{
 		AccessKey: c.AccessKey(),
 		SecretKey: c.SecretKey(),
 	}
 
-	s := s3.New(auth, aws.APNortheast)
+	s3o := s3.New(auth, aws.APNortheast)
 	g := &Guardian{
 		TransformerURL:  c.TransformerURL(),
-		Bucket:          s.Bucket(c.BucketName()),
-		Cache:           NewURLCache("127.0.0.1:11211"),
+		Bucket:          s3o.Bucket(c.BucketName()),
+		Cache:           s.cache,
+		listenAddr:      c.GuardianAddr(),
 		processingMutex: &sync.Mutex{},
 		processing:      make(map[uint64]bool),
 	}
 
 	return g, nil
+}
+
+func (g *Guardian) Run(doneCh chan struct{}) {
+	defer func() { doneCh <- struct{}{} }()
+	log.Printf("Guardian listening on %s", g.listenAddr)
+	http.ListenAndServe(g.listenAddr, g)
 }
 
 func (g *Guardian) ServeHTTP(w http.ResponseWriter, r *http.Request) {
