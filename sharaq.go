@@ -23,13 +23,15 @@ func init() {
 
 type Config struct {
 	filename          string
-	OptAccessKey      string   `json:"AccessKey"`
-	OptBucketName     string   `json:"BucketName"`
-	OptDispatcherAddr string   `json:"DispatcherAddr"` // listen on this address. default is 0.0.0.0:9090
-	OptGuardianAddr   string   `json:"GuardianAddr"`   // listen on this address. default is 0.0.0.0:9191
-	OptMemcachedAddr  []string `json:"MemcachedAddr"`
-	OptSecretKey      string   `json:"SecretKey"`
-	OptWhitelist      []string `json:"Whitelist"`
+	OptAccessKey      string      `json:"AccessKey"`
+	OptBackendType    BackendType `json:"Backend"`
+	OptBucketName     string      `json:"BucketName"`
+	OptDispatcherAddr string      `json:"DispatcherAddr"` // listen on this address. default is 0.0.0.0:9090
+	OptGuardianAddr   string      `json:"GuardianAddr"`   // listen on this address. default is 0.0.0.0:9191
+	OptMemcachedAddr  []string    `json:"MemcachedAddr"`
+	OptSecretKey      string      `json:"SecretKey"`
+	OptStorageRoot    string      `json:"StorageRoot"`
+	OptWhitelist      []string    `json:"Whitelist"`
 }
 
 func (c *Config) ParseFile(f string) error {
@@ -67,15 +69,18 @@ func (c *Config) ParseFile(f string) error {
 	return nil
 }
 
-func (c Config) AccessKey() string       { return c.OptAccessKey }
-func (c Config) BucketName() string      { return c.OptBucketName }
-func (c Config) DispatcherAddr() string  { return c.OptDispatcherAddr }
-func (c Config) GuardianAddr() string    { return c.OptGuardianAddr }
-func (c Config) MemcachedAddr() []string { return c.OptMemcachedAddr }
-func (c Config) SecretKey() string       { return c.OptSecretKey }
-func (c Config) Whitelist() []string     { return c.OptWhitelist }
+func (c Config) AccessKey() string        { return c.OptAccessKey }
+func (c Config) BackendType() BackendType { return c.OptBackendType }
+func (c Config) BucketName() string       { return c.OptBucketName }
+func (c Config) DispatcherAddr() string   { return c.OptDispatcherAddr }
+func (c Config) GuardianAddr() string     { return c.OptGuardianAddr }
+func (c Config) MemcachedAddr() []string  { return c.OptMemcachedAddr }
+func (c Config) SecretKey() string        { return c.OptSecretKey }
+func (c Config) StorageRoot() string      { return c.OptStorageRoot }
+func (c Config) Whitelist() []string      { return c.OptWhitelist }
 
 type Server struct {
+	backend     Backend
 	config      *Config
 	cache       *URLCache
 	transformer *Transformer
@@ -106,6 +111,7 @@ LOOP:
 
 		s.cache = NewURLCache(s.config.MemcachedAddr()...)
 		s.transformer = NewTransformer(s)
+		s.backend = NewBackend(s)
 
 		g, err := NewGuardian(s)
 		if err != nil {

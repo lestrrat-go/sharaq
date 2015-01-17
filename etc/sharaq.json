@@ -1,8 +1,10 @@
 {
-    "AccessKey": "FIX ME",
-    "BucketName": "my-bucket-name",
+    "AccessKey": "FIX ME, required for 's3' backend",
+    "BackendType": "'s3' or 'fs'",
+    "BucketName": "my-bucket-name, required for 's3' backend",
     "DispatcherAddr": "0.0.0.0:9090",
     "GuardianAddr": "0.0.0.0:9191",
-    "SecretKey": "FIX ME",
+    "SecretKey": "FIX ME, required for 's3' backend",
+    "StorageRoot": "required for 'fs' backend",
     "Whitelist": []
 }
