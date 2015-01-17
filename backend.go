@@ -74,6 +74,7 @@ type S3Backend struct {
 	bucketName  string
 	bucket      *s3.Bucket
 	cache       *URLCache
+	presets     map[string]string
 	transformer *Transformer
 }
 
@@ -141,8 +142,8 @@ func (s *S3Backend) StoreTransformedContent(u *url.URL) error {
 	// Transformation is completely done by the transformer, so just
 	// hand it over to it
 	wg := &sync.WaitGroup{}
-	errCh := make(chan error, len(presets))
-	for preset, rule := range presets {
+	errCh := make(chan error, len(s.presets))
+	for preset, rule := range s.presets {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup, t *Transformer, preset string, rule string, errCh chan error) {
 			defer wg.Done()
@@ -181,8 +182,8 @@ func (s *S3Backend) StoreTransformedContent(u *url.URL) error {
 
 func (s *S3Backend) Delete(u *url.URL) error {
 	wg := &sync.WaitGroup{}
-	errCh := make(chan error, len(presets))
-	for preset := range presets {
+	errCh := make(chan error, len(s.presets))
+	for preset := range s.presets {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup, preset string, errCh chan error) {
 			defer wg.Done()
@@ -217,6 +218,7 @@ func (s *S3Backend) Delete(u *url.URL) error {
 type FSBackend struct {
 	root        string
 	cache       *URLCache
+	presets     map[string]string
 	transformer *Transformer
 }
 
@@ -275,8 +277,8 @@ func (f *FSBackend) StoreTransformedContent(u *url.URL) error {
 	// Transformation is completely done by the transformer, so just
 	// hand it over to it
 	wg := &sync.WaitGroup{}
-	errCh := make(chan error, len(presets))
-	for preset, rule := range presets {
+	errCh := make(chan error, len(f.presets))
+	for preset, rule := range f.presets {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup, t *Transformer, preset string, rule string, errCh chan error) {
 			defer wg.Done()
@@ -326,8 +328,8 @@ func (f *FSBackend) StoreTransformedContent(u *url.URL) error {
 
 func (f *FSBackend) Delete(u *url.URL) error {
 	wg := &sync.WaitGroup{}
-	errCh := make(chan error, len(presets))
-	for preset := range presets {
+	errCh := make(chan error, len(f.presets))
+	for preset := range f.presets {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup, preset string, errCh chan error) {
 			defer wg.Done()

@@ -3,7 +3,6 @@ package sharaq
 import (
 	"fmt"
 	"hash/crc64"
-	"html/template"
 	"io"
 	"log"
 	"net"
@@ -18,13 +17,6 @@ type Guardian struct {
 	listenAddr      string
 	processingMutex *sync.Mutex
 	processing      map[uint64]bool
-}
-
-var presets = map[string]string{
-	"pc-thumb":     "360x216",
-	"ticket-thumb": "170x230",
-	"wando-thumb":  "596x450",
-	"email-thumb":  "596x450",
 }
 
 func NewGuardian(s *Server) (*Guardian, error) {
@@ -62,8 +54,6 @@ func (g *Guardian) Run(doneWg *sync.WaitGroup, exitCond *sync.Cond) {
 
 func (g *Guardian) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
-	case "GET":
-		g.HandleView(w, r)
 	case "PUT":
 		g.HandleStore(w, r)
 	case "DELETE":
@@ -92,46 +82,6 @@ func (g *Guardian) UnmarkProcessing(u *url.URL) {
 	g.processingMutex.Lock()
 	defer g.processingMutex.Unlock()
 	delete(g.processing, k)
-}
-
-func (g *Guardian) HandleView(w http.ResponseWriter, r *http.Request) {
-	rawValue := r.FormValue("url")
-	if rawValue == "" {
-		log.Printf("URL was empty")
-		http.Error(w, "Bad url", 500)
-		return
-	}
-
-	vars := struct {
-		Images map[string]string
-	}{
-		Images: make(map[string]string),
-	}
-	for name := range presets {
-		vars.Images[name] = "" // "http://" + g.bucketName + ".s3.amazonaws.com/" + name + u.Path
-	}
-
-	t, err := template.New("sharaq-view").Parse(`
-<html>
-<body>
-<table>
-{{range $name, $url := .Images}}
-<tr>
-    <td>{{ $name }}</td>
-    <td><img src="{{ $url }}"></td>
-</tr>
-{{end}}
-</table>
-</body>
-</html>`)
-	if err != nil {
-		log.Printf("Error parsing template: %s", err)
-		http.Error(w, "Template error", 500)
-		return
-	}
-
-	w.Header().Set("Content-Type", "text/html; charset=utf8")
-	t.Execute(w, vars)
 }
 
 // HandleStore accepts PUT requests to create resized images and

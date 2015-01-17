@@ -23,15 +23,16 @@ func init() {
 
 type Config struct {
 	filename          string
-	OptAccessKey      string      `json:"AccessKey"`
-	OptBackendType    BackendType `json:"Backend"`
-	OptBucketName     string      `json:"BucketName"`
-	OptDispatcherAddr string      `json:"DispatcherAddr"` // listen on this address. default is 0.0.0.0:9090
-	OptGuardianAddr   string      `json:"GuardianAddr"`   // listen on this address. default is 0.0.0.0:9191
-	OptMemcachedAddr  []string    `json:"MemcachedAddr"`
-	OptSecretKey      string      `json:"SecretKey"`
-	OptStorageRoot    string      `json:"StorageRoot"`
-	OptWhitelist      []string    `json:"Whitelist"`
+	OptAccessKey      string            `json:"AccessKey"`
+	OptBackendType    BackendType       `json:"Backend"`
+	OptBucketName     string            `json:"BucketName"`
+	OptDispatcherAddr string            `json:"DispatcherAddr"` // listen on this address. default is 0.0.0.0:9090
+	OptGuardianAddr   string            `json:"GuardianAddr"`   // listen on this address. default is 0.0.0.0:9191
+	OptMemcachedAddr  []string          `json:"MemcachedAddr"`
+	OptPresets        map[string]string `json:"Presets"`
+	OptSecretKey      string            `json:"SecretKey"`
+	OptStorageRoot    string            `json:"StorageRoot"`
+	OptWhitelist      []string          `json:"Whitelist"`
 }
 
 func (c *Config) ParseFile(f string) error {
@@ -44,6 +45,10 @@ func (c *Config) ParseFile(f string) error {
 	dec := json.NewDecoder(fh)
 	if err = dec.Decode(c); err != nil {
 		return err
+	}
+
+	if len(c.OptPresets) == 0 {
+		return fmt.Errorf("error: Presets is empty")
 	}
 
 	if c.OptDispatcherAddr == "" {
