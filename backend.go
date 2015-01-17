@@ -20,8 +20,8 @@ import (
 type BackendType int
 
 const (
-	S3BackendType BackendType = iota
-	FSBackendType
+	FSBackendType BackendType = iota
+	S3BackendType
 )
 
 func (b *BackendType) UnmarshalJSON(data []byte) error {
