@@ -8,7 +8,7 @@ import (
 	"github.com/Peatix/sharaq"
 )
 
-const version = "0.0.4"
+const version = "0.0.5"
 
 func main() {
 	os.Exit(_main())

@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.0.5 - Jan 18 2015
+    * Make presets configurable via config file
+    * Switch order of S3BackendType and FSBackendType, making FSBackend
+      the default
+
 0.0.4 - Jan 17 2015
     * Implement pluggable backend, and a file system storage, so it can
       be easily used in tests and such
