@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.0.4 - Jan 17 2015
+    * Implement pluggable backend, and a file system storage, so it can
+      be easily used in tests and such
+
 0.0.3 - Jan 17 2015
     * Implement start_server support
 
