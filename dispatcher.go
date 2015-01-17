@@ -4,12 +4,12 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/url"
 	"regexp"
 	"sync"
 )
 
 type Dispatcher struct {
+	backend    Backend
 	listenAddr string
 	bucketName string
 	whitelist  []*regexp.Regexp
@@ -34,6 +34,7 @@ func NewDispatcher(s *Server, g *Guardian) (*Dispatcher, error) {
 	}
 
 	return &Dispatcher{
+		backend:    s.backend,
 		listenAddr: c.DispatcherAddr(),
 		bucketName: c.BucketName(),
 		cache:      s.cache,
@@ -98,46 +99,5 @@ func (d *Dispatcher) HandleFetch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := url.Parse(rawValue)
-	if err != nil {
-		http.Error(w, "Bad url", 500)
-		return
-	}
-
-	device := r.FormValue("device")
-
-	cacheKey := MakeCacheKey(device, rawValue)
-
-	if cachedURL := d.cache.Lookup(cacheKey); cachedURL != "" {
-		log.Printf("Cached entry found for %s:%s -> %s", device, rawValue, cachedURL)
-		w.Header().Add("Location", cachedURL)
-		w.WriteHeader(301)
-		return
-	}
-
-	// create the proper url
-	specificURL := "http://" + d.bucketName + ".s3.amazonaws.com/" + device + u.Path
-
-	log.Printf("Making HEAD request to %s...", specificURL)
-	res, err := http.Head(specificURL)
-	if err != nil {
-		log.Printf("Failed to make HEAD request to %s: %s", specificURL, err)
-		goto FALLBACK
-	}
-
-	log.Printf("HEAD request for %s returns %d", specificURL, res.StatusCode)
-	if res.StatusCode == 200 {
-		go d.cache.Set(cacheKey, specificURL)
-		log.Printf("HEAD request to %s was success. Redirecting to proper location", specificURL)
-		w.Header().Add("Location", specificURL)
-		w.WriteHeader(301)
-		return
-	}
-
-	log.Printf("Requesting Guardian to store resized images...")
-	go d.guardian.transformAllAndStore(u)
-
-FALLBACK:
-	w.Header().Add("Location", u.String())
-	w.WriteHeader(302)
+	d.backend.Serve(w, r)
 }
