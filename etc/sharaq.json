@@ -3,7 +3,15 @@
     "BackendType": "'s3' or 'fs'",
     "BucketName": "my-bucket-name, required for 's3' backend",
     "DispatcherAddr": "0.0.0.0:9090",
+    "DispatcherLog": {
+        "LogFile": "dispatcher_access_log.%Y%m%d",
+        "LinkName": "dispatcher_access_log"
+    },
     "GuardianAddr": "0.0.0.0:9191",
+    "GuardianLog": {
+        "LogFile": "guardian_access_log.%Y%m%d",
+        "LinkName": "guardian_access_log"
+    },
     "Presets": {
         "big": "2000x2000,fit",
         "small": "100x100,fit"

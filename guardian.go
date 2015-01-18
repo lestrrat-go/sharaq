@@ -10,11 +10,15 @@ import (
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/lestrrat/go-apache-logformat"
+	"github.com/lestrrat/go-file-rotatelogs"
 )
 
 type Guardian struct {
 	backend         Backend
 	listenAddr      string
+	logConfig       *LogConfig
 	processingMutex *sync.Mutex
 	processing      map[uint64]bool
 }
@@ -23,6 +27,7 @@ func NewGuardian(s *Server) (*Guardian, error) {
 	c := s.config
 	g := &Guardian{
 		listenAddr:      c.GuardianAddr(),
+		logConfig:       c.GuardianLog(),
 		processingMutex: &sync.Mutex{},
 		processing:      make(map[uint64]bool),
 	}
@@ -33,7 +38,17 @@ func NewGuardian(s *Server) (*Guardian, error) {
 func (g *Guardian) Run(doneWg *sync.WaitGroup, exitCond *sync.Cond) {
 	defer doneWg.Done()
 
-	srv := &http.Server{Addr: g.listenAddr, Handler: g}
+	logger := apachelog.CombinedLog.Clone()
+	if gl := g.logConfig; gl != nil {
+		glh := rotatelogs.NewRotateLogs(gl.LogFile)
+		glh.LinkName = gl.LinkName
+		glh.MaxAge = gl.MaxAge
+		glh.Offset = gl.Offset
+		glh.RotationTime = gl.RotationTime
+		logger.SetOutput(glh)
+	}
+	srv := &http.Server{Addr: g.listenAddr, Handler: apachelog.WrapLoggingWriter(g, logger)}
+
 	ln, err := makeListener(g.listenAddr)
 	if err != nil {
 		log.Printf("Error binding to listen address: %s", err)
