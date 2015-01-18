@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"regexp"
 	"sync"
+
+	"github.com/lestrrat/go-apache-logformat"
+	"github.com/lestrrat/go-file-rotatelogs"
 )
 
 type Dispatcher struct {
@@ -14,6 +17,7 @@ type Dispatcher struct {
 	bucketName string
 	whitelist  []*regexp.Regexp
 	cache      *URLCache
+	logConfig  *LogConfig
 	guardian   *Guardian
 }
 
@@ -39,6 +43,7 @@ func NewDispatcher(s *Server, g *Guardian) (*Dispatcher, error) {
 		bucketName: c.BucketName(),
 		cache:      s.cache,
 		guardian:   g,
+		logConfig:  s.config.DispatcherLog(),
 		whitelist:  whitelist,
 	}, nil
 }
@@ -46,7 +51,16 @@ func NewDispatcher(s *Server, g *Guardian) (*Dispatcher, error) {
 func (d *Dispatcher) Run(doneWg *sync.WaitGroup, exitCond *sync.Cond) {
 	defer doneWg.Done()
 
-	srv := &http.Server{Addr: d.listenAddr, Handler: d}
+	logger := apachelog.CombinedLog.Clone()
+	if dl := d.logConfig; dl != nil {
+		dlh := rotatelogs.NewRotateLogs(dl.LogFile)
+		dlh.LinkName = dl.LinkName
+		dlh.MaxAge = dl.MaxAge
+		dlh.Offset = dl.Offset
+		dlh.RotationTime = dl.RotationTime
+		logger.SetOutput(dlh)
+	}
+	srv := &http.Server{Addr: d.listenAddr, Handler: apachelog.WrapLoggingWriter(d, logger)}
 	ln, err := makeListener(d.listenAddr)
 	if err != nil {
 		log.Printf("Error binding to listen address: %s", err)
@@ -69,6 +83,7 @@ func (d *Dispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		d.HandleFetch(w, r)
+
 	default:
 		http.Error(w, "What, what, what?", 400)
 	}

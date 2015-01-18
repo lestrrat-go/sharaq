@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/lestrrat/go-file-rotatelogs"
 	"github.com/lestrrat/go-server-starter/listener"
 )
 
@@ -21,13 +22,24 @@ func init() {
 	crc64Table = crc64.MakeTable(crc64.ISO)
 }
 
+type LogConfig struct {
+	LogFile      string
+	LinkName     string
+	RotationTime time.Duration
+	MaxAge       time.Duration
+	Offset       time.Duration
+}
+
 type Config struct {
 	filename          string
 	OptAccessKey      string            `json:"AccessKey"`
 	OptBackendType    BackendType       `json:"Backend"`
 	OptBucketName     string            `json:"BucketName"`
 	OptDispatcherAddr string            `json:"DispatcherAddr"` // listen on this address. default is 0.0.0.0:9090
+	OptDispatcherLog  *LogConfig        `json:"DispatcherLog"`  // dispatcher log. if nil, logs to stderr
+	OptErrorLog       *LogConfig        `json:"ErrorLog"`       // error log location. if nil, logs to stderr
 	OptGuardianAddr   string            `json:"GuardianAddr"`   // listen on this address. default is 0.0.0.0:9191
+	OptGuardianLog    *LogConfig        `json:"GuardianLog"`
 	OptMemcachedAddr  []string          `json:"MemcachedAddr"`
 	OptPresets        map[string]string `json:"Presets"`
 	OptSecretKey      string            `json:"SecretKey"`
@@ -71,18 +83,41 @@ func (c *Config) ParseFile(f string) error {
 		c.OptGuardianAddr = "0.0.0.0" + c.OptGuardianAddr
 	}
 
+	applyLogDefaults := func(c *LogConfig) {
+		if c.RotationTime <= 0 {
+			// 1 day
+			c.RotationTime = 24 * time.Hour
+		}
+		if c.MaxAge <= 0 {
+			// 30 days
+			c.MaxAge = 30 * 24 * time.Hour
+		}
+	}
+	if c.OptErrorLog != nil {
+		applyLogDefaults(c.OptErrorLog)
+	}
+	if c.OptDispatcherLog != nil {
+		applyLogDefaults(c.OptDispatcherLog)
+	}
+	if c.OptGuardianLog != nil {
+		applyLogDefaults(c.OptGuardianLog)
+	}
+
 	return nil
 }
 
-func (c Config) AccessKey() string        { return c.OptAccessKey }
-func (c Config) BackendType() BackendType { return c.OptBackendType }
-func (c Config) BucketName() string       { return c.OptBucketName }
-func (c Config) DispatcherAddr() string   { return c.OptDispatcherAddr }
-func (c Config) GuardianAddr() string     { return c.OptGuardianAddr }
-func (c Config) MemcachedAddr() []string  { return c.OptMemcachedAddr }
-func (c Config) SecretKey() string        { return c.OptSecretKey }
-func (c Config) StorageRoot() string      { return c.OptStorageRoot }
-func (c Config) Whitelist() []string      { return c.OptWhitelist }
+func (c Config) AccessKey() string         { return c.OptAccessKey }
+func (c Config) BackendType() BackendType  { return c.OptBackendType }
+func (c Config) BucketName() string        { return c.OptBucketName }
+func (c Config) DispatcherAddr() string    { return c.OptDispatcherAddr }
+func (c Config) DispatcherLog() *LogConfig { return c.OptDispatcherLog }
+func (c Config) ErrorLog() *LogConfig      { return c.OptErrorLog }
+func (c Config) GuardianAddr() string      { return c.OptGuardianAddr }
+func (c Config) GuardianLog() *LogConfig   { return c.OptGuardianLog }
+func (c Config) MemcachedAddr() []string   { return c.OptMemcachedAddr }
+func (c Config) SecretKey() string         { return c.OptSecretKey }
+func (c Config) StorageRoot() string       { return c.OptStorageRoot }
+func (c Config) Whitelist() []string       { return c.OptWhitelist }
 
 type Server struct {
 	backend     Backend
@@ -92,13 +127,20 @@ type Server struct {
 }
 
 func NewServer(c *Config) *Server {
-	log.Printf("Using url cache at %v", c.MemcachedAddr())
 	return &Server{
 		config: c,
 	}
 }
 
 func (s *Server) Run() error {
+	if el := s.config.ErrorLog(); el != nil {
+		elh := rotatelogs.NewRotateLogs(el.LogFile)
+		elh.LinkName = el.LinkName
+		elh.MaxAge = el.MaxAge
+		elh.Offset = el.Offset
+		elh.RotationTime = el.RotationTime
+		log.SetOutput(elh)
+	}
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	defer signal.Stop(sigCh)
@@ -114,6 +156,7 @@ LOOP:
 			// no op, but required to not block on the above case
 		}
 
+		log.Printf("Using url cache at %v", s.config.MemcachedAddr())
 		s.cache = NewURLCache(s.config.MemcachedAddr()...)
 		s.transformer = NewTransformer(s)
 		s.backend = NewBackend(s)
