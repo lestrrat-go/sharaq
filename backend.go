@@ -53,6 +53,24 @@ func (b BackendType) String() string {
 	}
 }
 
+func getTargetURL(r *http.Request) (*url.URL, error) {
+	rawValue := r.FormValue("url")
+	u, err := url.Parse(rawValue)
+	if err != nil {
+		return nil, err
+	}
+
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return nil, fmt.Errorf("scheme '%s' not supported", u.Scheme)
+	}
+
+	if u.Host == "" {
+		return nil, fmt.Errorf("empty host")
+	}
+
+	return u, nil
+}
+
 type Backend interface {
 	Serve(http.ResponseWriter, *http.Request)
 	StoreTransformedContent(*url.URL) error
@@ -60,6 +78,8 @@ type Backend interface {
 }
 
 func NewBackend(s *Server) Backend {
+	log.Printf("Using backend type %s", s.config.BackendType())
+
 	switch s.config.BackendType() {
 	case S3BackendType:
 		return NewS3Backend(s)
@@ -95,18 +115,18 @@ func NewS3Backend(s *Server) Backend {
 }
 
 func (s *S3Backend) Serve(w http.ResponseWriter, r *http.Request) {
-	rawValue := r.FormValue("url")
-	u, err := url.Parse(rawValue)
+	u, err := getTargetURL(r)
 	if err != nil {
+		log.Printf("Bad url: %s", err)
 		http.Error(w, "Bad url", 500)
 		return
 	}
 
 	device := r.FormValue("device")
 
-	cacheKey := MakeCacheKey("s3", device, rawValue)
+	cacheKey := MakeCacheKey("s3", device, u.String())
 	if cachedURL := s.cache.Lookup(cacheKey); cachedURL != "" {
-		log.Printf("Cached entry found for %s:%s -> %s", device, rawValue, cachedURL)
+		log.Printf("Cached entry found for %s:%s -> %s", device, u.String(), cachedURL)
 		w.Header().Add("Location", cachedURL)
 		w.WriteHeader(301)
 		return
@@ -243,23 +263,23 @@ func (f *FSBackend) EncodeFilename(device string, urlstr string) string {
 }
 
 func (f *FSBackend) Serve(w http.ResponseWriter, r *http.Request) {
-	rawValue := r.FormValue("url")
-	u, err := url.Parse(rawValue)
+	u, err := getTargetURL(r)
 	if err != nil {
+		log.Printf("Bad url: %s", err)
 		http.Error(w, "Bad url", 500)
 		return
 	}
 
 	device := r.FormValue("device")
 
-	cacheKey := MakeCacheKey("fs", device, rawValue)
+	cacheKey := MakeCacheKey("fs", device, u.String())
 	if cachedFile := f.cache.Lookup(cacheKey); cachedFile != "" {
-		log.Printf("Cached entry found for %s:%s -> %s", device, rawValue, cachedFile)
+		log.Printf("Cached entry found for %s:%s -> %s", device, u.String(), cachedFile)
 		http.ServeFile(w, r, cachedFile)
 		return
 	}
 
-	path := f.EncodeFilename(device, rawValue)
+	path := f.EncodeFilename(device, u.String())
 	if _, err := os.Stat(path); err == nil {
 		// HIT. Serve this guy after filling the cache
 		f.cache.Set(cacheKey, path)
