@@ -43,6 +43,7 @@ type Config struct {
 	OptErrorLog       *LogConfig        `json:"ErrorLog"`       // error log location. if nil, logs to stderr
 	OptGuardianAddr   string            `json:"GuardianAddr"`   // listen on this address. default is 0.0.0.0:9191
 	OptGuardianLog    *LogConfig        `json:"GuardianLog"`
+	OptImageTTL       time.Duration     `json:"ImageTTL"`
 	OptMemcachedAddr  []string          `json:"MemcachedAddr"`
 	OptPresets        map[string]string `json:"Presets"`
 	OptSecretKey      string            `json:"SecretKey"`
@@ -118,6 +119,7 @@ func (c Config) DispatcherLog() *LogConfig  { return c.OptDispatcherLog }
 func (c Config) ErrorLog() *LogConfig       { return c.OptErrorLog }
 func (c Config) GuardianAddr() string       { return c.OptGuardianAddr }
 func (c Config) GuardianLog() *LogConfig    { return c.OptGuardianLog }
+func (c Config) ImageTTL() time.Duration    { return c.OptImageTTL }
 func (c Config) MemcachedAddr() []string    { return c.OptMemcachedAddr }
 func (c Config) Presets() map[string]string { return c.OptPresets }
 func (c Config) SecretKey() string          { return c.OptSecretKey }
@@ -181,7 +183,11 @@ LOOP:
 		log.Printf("Using url cache at %v", s.config.MemcachedAddr())
 		s.cache = NewURLCache(s.config.MemcachedAddr()...)
 		s.transformer = NewTransformer(s)
-		s.backend = NewBackend(s)
+		b, err := NewBackend(s)
+		if err != nil {
+			return err
+		}
+		s.backend = b
 
 		g, err := NewGuardian(s)
 		if err != nil {

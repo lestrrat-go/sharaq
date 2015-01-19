@@ -24,7 +24,7 @@ func MakeCacheKey(v ...string) string {
 	for _, x := range v {
 		io.WriteString(h, x)
 	}
-	return fmt.Sprintf("%x", h.Sum(nil))
+	return fmt.Sprintf("sharaq:urlcache:%x", h.Sum(nil))
 }
 
 func (c *URLCache) Lookup(key string) string {

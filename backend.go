@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/goamz/goamz/aws"
 	"github.com/goamz/goamz/s3"
@@ -77,7 +78,7 @@ type Backend interface {
 	Delete(*url.URL) error
 }
 
-func NewBackend(s *Server) Backend {
+func NewBackend(s *Server) (Backend, error) {
 	log.Printf("Using backend type %s", s.config.BackendType())
 
 	switch s.config.BackendType() {
@@ -86,7 +87,7 @@ func NewBackend(s *Server) Backend {
 	case FSBackendType:
 		return NewFSBackend(s)
 	default:
-		return nil
+		return nil, fmt.Errorf("Unknown backend type: %s", s.config.BackendType())
 	}
 }
 
@@ -98,7 +99,7 @@ type S3Backend struct {
 	transformer *Transformer
 }
 
-func NewS3Backend(s *Server) Backend {
+func NewS3Backend(s *Server) (Backend, error) {
 	c := s.config
 	auth := aws.Auth{
 		AccessKey: c.AccessKey(),
@@ -112,7 +113,7 @@ func NewS3Backend(s *Server) Backend {
 		cache:       s.cache,
 		presets:     c.Presets(),
 		transformer: s.transformer,
-	}
+	}, nil
 }
 
 func (s *S3Backend) Serve(w http.ResponseWriter, r *http.Request) {
@@ -245,20 +246,26 @@ func (s *S3Backend) Delete(u *url.URL) error {
 type FSBackend struct {
 	root        string
 	cache       *URLCache
+	imageTTL    time.Duration
 	presets     map[string]string
 	transformer *Transformer
 }
 
-func NewFSBackend(s *Server) Backend {
+func NewFSBackend(s *Server) (Backend, error) {
 	c := s.config
 
-	log.Printf("FSBackend: storing files under %s", c.StorageRoot())
+	root := c.StorageRoot()
+	if root == "" {
+		return nil, fmt.Errorf("FSBackend: 'StorageRoot' is required")
+	}
+	log.Printf("FSBackend: storing files under %s", root)
 	return &FSBackend{
-		root:        c.StorageRoot(),
+		root:        root,
 		cache:       s.cache,
+		imageTTL:    c.ImageTTL(),
 		presets:     c.Presets(),
 		transformer: s.transformer,
-	}
+	}, nil
 }
 
 func (f *FSBackend) EncodeFilename(device string, urlstr string) string {
@@ -356,6 +363,9 @@ func (f *FSBackend) StoreTransformedContent(u *url.URL) error {
 		fmt.Fprintf(buf, "Err: %s\n", err)
 	}
 
+	// Cleanup disk
+	go f.CleanStorageRoot()
+
 	if buf.Len() > 0 {
 		return fmt.Errorf("error while transforming: %s", buf.String())
 	}
@@ -393,6 +403,25 @@ func (f *FSBackend) Delete(u *url.URL) error {
 	if buf.Len() > 0 {
 		return fmt.Errorf("error while deleting: %s", buf.String())
 	}
+
+	return nil
+}
+
+func (f *FSBackend) CleanStorageRoot() error {
+	if f.imageTTL <= 0 {
+		return nil
+	}
+
+	filepath.Walk(f.root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+
+		if time.Since(info.ModTime()) > f.imageTTL {
+			os.Remove(path)
+		}
+		return nil
+	})
 
 	return nil
 }
