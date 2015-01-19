@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/crc64"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -58,8 +59,13 @@ func (c *Config) ParseFile(f string) error {
 	}
 	defer fh.Close()
 
-	dec := json.NewDecoder(fh)
-	if err = dec.Decode(c); err != nil {
+	c.filename = f
+	return c.Parse(fh)
+}
+
+func (c *Config) Parse(rdr io.Reader) error {
+	dec := json.NewDecoder(rdr)
+	if err := dec.Decode(c); err != nil {
 		return err
 	}
 
@@ -76,7 +82,6 @@ func (c *Config) ParseFile(f string) error {
 	if len(c.OptMemcachedAddr) < 1 {
 		c.OptMemcachedAddr = []string{"127.0.0.1:11211"}
 	}
-	c.filename = f
 
 	// Normalize shorthand form to full form
 	if c.OptDispatcherAddr[0] == ':' {
