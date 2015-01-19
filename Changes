@@ -1,6 +1,10 @@
 Changes
 =======
 
+0.0.8 - Jan 19 2015
+    * Fix silly error where guardian wasn't properly initialized
+    * Add URLCacheExpires config parameter to set an expiry in URLCache
+
 0.0.7 - Jan 19 2015
     * URLCache keys are not namespaced.
     * Backend config parameter has been renamed to BackendType to match
