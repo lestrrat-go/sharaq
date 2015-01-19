@@ -26,6 +26,7 @@ type Guardian struct {
 func NewGuardian(s *Server) (*Guardian, error) {
 	c := s.config
 	g := &Guardian{
+		backend:         s.backend,
 		listenAddr:      c.GuardianAddr(),
 		logConfig:       c.GuardianLog(),
 		processingMutex: &sync.Mutex{},
