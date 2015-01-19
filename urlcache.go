@@ -10,11 +10,16 @@ import (
 
 type URLCache struct {
 	Memcache *memcache.Client
+	Expires  int32
 }
 
-func NewURLCache(servers ...string) *URLCache {
+func NewURLCache(s *Server) *URLCache {
+	servers := s.config.MemcachedAddr()
+	expires := s.config.URLCacheExpires()
+
 	return &URLCache{
 		Memcache: memcache.New(servers...),
+		Expires: expires,
 	}
 }
 
@@ -37,7 +42,7 @@ func (c *URLCache) Lookup(key string) string {
 }
 
 func (c *URLCache) Set(key, value string) {
-	c.Memcache.Set(&memcache.Item{Key: key, Value: []byte(value)})
+	c.Memcache.Set(&memcache.Item{Key: key, Value: []byte(value), Expiration: c.Expires})
 }
 
 func (c *URLCache) Delete(key string) {

@@ -34,22 +34,23 @@ type LogConfig struct {
 }
 
 type Config struct {
-	filename          string
-	OptAccessKey      string            `json:"AccessKey"`
-	OptBackendType    BackendType       `json:"BackendType"`
-	OptBucketName     string            `json:"BucketName"`
-	OptDebug          bool              `json:"Debug"`
-	OptDispatcherAddr string            `json:"DispatcherAddr"` // listen on this address. default is 0.0.0.0:9090
-	OptDispatcherLog  *LogConfig        `json:"DispatcherLog"`  // dispatcher log. if nil, logs to stderr
-	OptErrorLog       *LogConfig        `json:"ErrorLog"`       // error log location. if nil, logs to stderr
-	OptGuardianAddr   string            `json:"GuardianAddr"`   // listen on this address. default is 0.0.0.0:9191
-	OptGuardianLog    *LogConfig        `json:"GuardianLog"`
-	OptImageTTL       time.Duration     `json:"ImageTTL"`
-	OptMemcachedAddr  []string          `json:"MemcachedAddr"`
-	OptPresets        map[string]string `json:"Presets"`
-	OptSecretKey      string            `json:"SecretKey"`
-	OptStorageRoot    string            `json:"StorageRoot"`
-	OptWhitelist      []string          `json:"Whitelist"`
+	filename           string
+	OptAccessKey       string            `json:"AccessKey"`
+	OptBackendType     BackendType       `json:"BackendType"`
+	OptBucketName      string            `json:"BucketName"`
+	OptDebug           bool              `json:"Debug"`
+	OptDispatcherAddr  string            `json:"DispatcherAddr"` // listen on this address. default is 0.0.0.0:9090
+	OptDispatcherLog   *LogConfig        `json:"DispatcherLog"`  // dispatcher log. if nil, logs to stderr
+	OptErrorLog        *LogConfig        `json:"ErrorLog"`       // error log location. if nil, logs to stderr
+	OptGuardianAddr    string            `json:"GuardianAddr"`   // listen on this address. default is 0.0.0.0:9191
+	OptGuardianLog     *LogConfig        `json:"GuardianLog"`
+	OptImageTTL        time.Duration     `json:"ImageTTL"`
+	OptMemcachedAddr   []string          `json:"MemcachedAddr"`
+	OptPresets         map[string]string `json:"Presets"`
+	OptSecretKey       string            `json:"SecretKey"`
+	OptStorageRoot     string            `json:"StorageRoot"`
+	OptURLCacheExpires int32             `json:"URLCacheExpires"`
+	OptWhitelist       []string          `json:"Whitelist"`
 }
 
 func (c *Config) ParseFile(f string) error {
@@ -129,6 +130,7 @@ func (c Config) MemcachedAddr() []string    { return c.OptMemcachedAddr }
 func (c Config) Presets() map[string]string { return c.OptPresets }
 func (c Config) SecretKey() string          { return c.OptSecretKey }
 func (c Config) StorageRoot() string        { return c.OptStorageRoot }
+func (c Config) URLCacheExpires() int32     { return c.OptURLCacheExpires }
 func (c Config) Whitelist() []string        { return c.OptWhitelist }
 
 type Server struct {
@@ -186,7 +188,7 @@ LOOP:
 		}
 
 		log.Printf("Using url cache at %v", s.config.MemcachedAddr())
-		s.cache = NewURLCache(s.config.MemcachedAddr()...)
+		s.cache = NewURLCache(s)
 		s.transformer = NewTransformer(s)
 		b, err := NewBackend(s)
 		if err != nil {
