@@ -1,7 +1,16 @@
 Changes
 =======
 
-0.0.5 - Jan 19 2015
+0.0.7 - Jan 19 2015
+    * URLCache keys are not namespaced.
+    * Backend config parameter has been renamed to BackendType to match
+      the actual code
+    * NewBackend now returns an error in case of failure to initialize
+    * NewFSBackend returns an error if StorageRoot is the empty string
+    * FSBackend periodically cleans up the generated images if ImageTTL
+      is specified
+
+0.0.6 - Jan 19 2015
     * Bugfix: properly transform images... oops.
     * Implement access logs, and allow to redirect general logs to
       a file
