@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.0.5 - Jan 19 2015
+    * Bugfix: properly transform images... oops.
+    * Implement access logs, and allow to redirect general logs to
+      a file
+    
 0.0.5 - Jan 18 2015
     * Make presets configurable via config file
     * Switch order of S3BackendType and FSBackendType, making FSBackend
