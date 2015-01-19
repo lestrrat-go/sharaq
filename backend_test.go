@@ -8,7 +8,7 @@ import (
 func TestBackendSerialization(t *testing.T) {
 	c := &Config{}
 	b := &bytes.Buffer{}
-	b.WriteString(`{"Backend":"s3"}`)
+	b.WriteString(`{"BackendType":"s3"}`)
 	c.Parse(b)
 
 	if c.BackendType() != S3BackendType {

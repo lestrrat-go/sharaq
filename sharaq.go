@@ -36,7 +36,7 @@ type LogConfig struct {
 type Config struct {
 	filename          string
 	OptAccessKey      string            `json:"AccessKey"`
-	OptBackendType    BackendType       `json:"Backend"`
+	OptBackendType    BackendType       `json:"BackendType"`
 	OptBucketName     string            `json:"BucketName"`
 	OptDebug          bool              `json:"Debug"`
 	OptDispatcherAddr string            `json:"DispatcherAddr"` // listen on this address. default is 0.0.0.0:9090
