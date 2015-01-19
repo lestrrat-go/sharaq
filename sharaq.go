@@ -1,6 +1,8 @@
 package sharaq
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"hash/crc64"
@@ -35,6 +37,7 @@ type Config struct {
 	OptAccessKey      string            `json:"AccessKey"`
 	OptBackendType    BackendType       `json:"Backend"`
 	OptBucketName     string            `json:"BucketName"`
+	OptDebug          bool              `json:"Debug"`
 	OptDispatcherAddr string            `json:"DispatcherAddr"` // listen on this address. default is 0.0.0.0:9090
 	OptDispatcherLog  *LogConfig        `json:"DispatcherLog"`  // dispatcher log. if nil, logs to stderr
 	OptErrorLog       *LogConfig        `json:"ErrorLog"`       // error log location. if nil, logs to stderr
@@ -106,18 +109,20 @@ func (c *Config) ParseFile(f string) error {
 	return nil
 }
 
-func (c Config) AccessKey() string         { return c.OptAccessKey }
-func (c Config) BackendType() BackendType  { return c.OptBackendType }
-func (c Config) BucketName() string        { return c.OptBucketName }
-func (c Config) DispatcherAddr() string    { return c.OptDispatcherAddr }
-func (c Config) DispatcherLog() *LogConfig { return c.OptDispatcherLog }
-func (c Config) ErrorLog() *LogConfig      { return c.OptErrorLog }
-func (c Config) GuardianAddr() string      { return c.OptGuardianAddr }
-func (c Config) GuardianLog() *LogConfig   { return c.OptGuardianLog }
-func (c Config) MemcachedAddr() []string   { return c.OptMemcachedAddr }
-func (c Config) SecretKey() string         { return c.OptSecretKey }
-func (c Config) StorageRoot() string       { return c.OptStorageRoot }
-func (c Config) Whitelist() []string       { return c.OptWhitelist }
+func (c Config) AccessKey() string          { return c.OptAccessKey }
+func (c Config) BackendType() BackendType   { return c.OptBackendType }
+func (c Config) BucketName() string         { return c.OptBucketName }
+func (c Config) Debug() bool                { return c.OptDebug }
+func (c Config) DispatcherAddr() string     { return c.OptDispatcherAddr }
+func (c Config) DispatcherLog() *LogConfig  { return c.OptDispatcherLog }
+func (c Config) ErrorLog() *LogConfig       { return c.OptErrorLog }
+func (c Config) GuardianAddr() string       { return c.OptGuardianAddr }
+func (c Config) GuardianLog() *LogConfig    { return c.OptGuardianLog }
+func (c Config) MemcachedAddr() []string    { return c.OptMemcachedAddr }
+func (c Config) Presets() map[string]string { return c.OptPresets }
+func (c Config) SecretKey() string          { return c.OptSecretKey }
+func (c Config) StorageRoot() string        { return c.OptStorageRoot }
+func (c Config) Whitelist() []string        { return c.OptWhitelist }
 
 type Server struct {
 	backend     Backend
@@ -127,8 +132,25 @@ type Server struct {
 }
 
 func NewServer(c *Config) *Server {
-	return &Server{
+	s := &Server{
 		config: c,
+	}
+	if s.config.Debug() {
+		s.dumpConfig()
+	}
+	return s
+}
+
+func (s *Server) dumpConfig() {
+	j, err := json.MarshalIndent(s.config, "", "  ")
+	if err != nil {
+		return
+	}
+
+	scanner := bufio.NewScanner(bytes.NewBuffer(j))
+	for scanner.Scan() {
+		l := scanner.Text()
+		log.Print(l)
 	}
 }
 
@@ -184,6 +206,9 @@ LOOP:
 					log.Printf("Failed to reload config file %s: %s", s.config.filename, err)
 				} else {
 					s.config = newConfig
+					if s.config.Debug() {
+						s.dumpConfig()
+					}
 				}
 			default:
 				log.Printf("Termination request received. Shutting down...")

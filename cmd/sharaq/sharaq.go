@@ -15,8 +15,8 @@ func main() {
 }
 
 func _main() int {
+	cfgfile := flag.String("config", "sharaq.json", "config file")
 	showVersion := flag.Bool("version", false, "show sharaq version")
-	cfgfile := flag.String("config", "etc/sharaq.json", "config file")
 	flag.Parse()
 
 	if *showVersion {

@@ -59,6 +59,8 @@ func (d *Dispatcher) Run(doneWg *sync.WaitGroup, exitCond *sync.Cond) {
 		dlh.Offset = dl.Offset
 		dlh.RotationTime = dl.RotationTime
 		logger.SetOutput(dlh)
+
+		log.Printf("Dispatcher logging to %s", dlh.LogFile)
 	}
 	srv := &http.Server{Addr: d.listenAddr, Handler: apachelog.WrapLoggingWriter(d, logger)}
 	ln, err := makeListener(d.listenAddr)

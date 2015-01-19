@@ -46,6 +46,8 @@ func (g *Guardian) Run(doneWg *sync.WaitGroup, exitCond *sync.Cond) {
 		glh.Offset = gl.Offset
 		glh.RotationTime = gl.RotationTime
 		logger.SetOutput(glh)
+
+		log.Printf("Guardian logging to %s", glh.LogFile)
 	}
 	srv := &http.Server{Addr: g.listenAddr, Handler: apachelog.WrapLoggingWriter(g, logger)}
 

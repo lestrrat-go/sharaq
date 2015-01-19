@@ -110,6 +110,7 @@ func NewS3Backend(s *Server) Backend {
 		bucket:      s3o.Bucket(c.BucketName()),
 		bucketName:  c.BucketName(),
 		cache:       s.cache,
+		presets:     c.Presets(),
 		transformer: s.transformer,
 	}
 }
@@ -151,7 +152,11 @@ func (s *S3Backend) Serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go s.StoreTransformedContent(u)
+	go func() {
+		if err := s.StoreTransformedContent(u); err != nil {
+			log.Printf("S3Backend: transformation failed: %s", err)
+		}
+	}()
 
 FALLBACK:
 	w.Header().Add("Location", u.String())
@@ -159,6 +164,8 @@ FALLBACK:
 }
 
 func (s *S3Backend) StoreTransformedContent(u *url.URL) error {
+	log.Printf("S3Backend: transforming image at url %s", u)
+
 	// Transformation is completely done by the transformer, so just
 	// hand it over to it
 	wg := &sync.WaitGroup{}
@@ -245,9 +252,11 @@ type FSBackend struct {
 func NewFSBackend(s *Server) Backend {
 	c := s.config
 
+	log.Printf("FSBackend: storing files under %s", c.StorageRoot())
 	return &FSBackend{
 		root:        c.StorageRoot(),
 		cache:       s.cache,
+		presets:     c.Presets(),
 		transformer: s.transformer,
 	}
 }
@@ -287,15 +296,19 @@ func (f *FSBackend) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// transformed files are not available. Let the client received the original one
-	go f.StoreTransformedContent(u)
+	go func() {
+		if err := f.StoreTransformedContent(u); err != nil {
+			log.Printf("FSBackend: transformation failed: %s", err)
+		}
+	}()
 
 	w.Header().Add("Location", u.String())
 	w.WriteHeader(302)
 }
 
 func (f *FSBackend) StoreTransformedContent(u *url.URL) error {
-	// Transformation is completely done by the transformer, so just
-	// hand it over to it
+	log.Printf("FSBackend: transforming image at url %s", u)
+
 	wg := &sync.WaitGroup{}
 	errCh := make(chan error, len(f.presets))
 	for preset, rule := range f.presets {
@@ -303,6 +316,7 @@ func (f *FSBackend) StoreTransformedContent(u *url.URL) error {
 		go func(wg *sync.WaitGroup, t *Transformer, preset string, rule string, errCh chan error) {
 			defer wg.Done()
 
+			log.Printf("FSBackend: applying transformation %s (%s)...", preset, rule)
 			res, err := t.Transform(rule, u.String())
 			if err != nil {
 				errCh <- err
@@ -312,9 +326,12 @@ func (f *FSBackend) StoreTransformedContent(u *url.URL) error {
 			path := f.EncodeFilename(preset, u.String())
 			log.Printf("Saving to %s...", path)
 
-			if err := os.MkdirAll(filepath.Dir(path), 0744); err != nil {
-				errCh <- err
-				return
+			dir := filepath.Dir(path)
+			if _, err := os.Stat(dir); err != nil {
+				if err := os.MkdirAll(filepath.Dir(path), 0744); err != nil {
+					errCh <- err
+					return
+				}
 			}
 
 			fh, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0644)
@@ -379,4 +396,3 @@ func (f *FSBackend) Delete(u *url.URL) error {
 
 	return nil
 }
-
