@@ -127,7 +127,7 @@ func (g *Guardian) HandleStore(w http.ResponseWriter, r *http.Request) {
 	}
 	defer g.UnmarkProcessing(u)
 
-	start := time.Now()
+	// start := time.Now()
 	if err := g.backend.StoreTransformedContent(u); err != nil {
 		log.Printf("Error detected while processing: %s", err)
 		http.Error(w, err.Error(), 500)
@@ -161,7 +161,7 @@ func (g *Guardian) HandleDelete(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("DELETE for source image: %s\n", u.String())
 
-	start := time.Now()
+	// start := time.Now()
 
 	if err := g.backend.Delete(u); err != nil {
 		log.Printf("Error detected while processing: %s", err)
@@ -169,5 +169,5 @@ func (g *Guardian) HandleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Add("X-Peatix-Elapsed-Time", fmt.Sprintf("%0.2f", time.Since(start).Seconds()))
+	// w.Header().Add("X-Sharaq-Elapsed-Time", fmt.Sprintf("%0.2f", time.Since(start).Seconds()))
 }
