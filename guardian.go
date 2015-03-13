@@ -1,7 +1,6 @@
 package sharaq
 
 import (
-	"fmt"
 	"hash/crc64"
 	"io"
 	"log"
@@ -9,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"sync"
-	"time"
 
 	"github.com/lestrrat/go-apache-logformat"
 	"github.com/lestrrat/go-file-rotatelogs"
