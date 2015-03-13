@@ -3,6 +3,7 @@ package sharaq
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"hash/crc64"
 	"io"
@@ -117,6 +118,7 @@ func NewS3Backend(s *Server) (Backend, error) {
 }
 
 var ErrInvalidPreset = errors.New("invalid preset parameter")
+
 func getPresetFromRequest(r *http.Request) (string, error) {
 	if preset := r.FormValue("preset"); preset != "" {
 		return preset, nil
