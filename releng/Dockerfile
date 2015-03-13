@@ -16,6 +16,6 @@ COPY config.sh /
 COPY build-on-docker.sh /
 COPY release-on-docker.sh /
 
-VOLUME ["/work/src/github.com/Peatix/sharaq"]
+VOLUME ["/work/src/github.com/lestrrat/sharaq"]
 
 CMD echo "sharaq-docker built for go version 1.4"

@@ -1,4 +1,4 @@
-export WORKDIR=/work/src/github.com/Peatix/sharaq
+export WORKDIR=/work/src/github.com/lestrrat/sharaq
 export RESULTSDIR=/work/artifacts
 export PROJECTDIR=$(cd $(dirname $BASH_SOURCE)/..; pwd -P)
 if [ -z "$RELEASE_VERSION" ]; then

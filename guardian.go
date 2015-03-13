@@ -134,7 +134,8 @@ func (g *Guardian) HandleStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Add("X-Peatix-Elapsed-Time", fmt.Sprintf("%0.2f", time.Since(start).Seconds()))
+	// TODO: allow configuring this later
+	// w.Header().Add("X-Sharaq-Elapsed-Time", fmt.Sprintf("%0.2f", time.Since(start).Seconds()))
 }
 
 // HandleDelete accepts DELETE requests to delete all known resized images from S3
