@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/Peatix/sharaq"
+	"github.com/lestrrat/sharaq"
 )
 
 const version = "0.0.8"

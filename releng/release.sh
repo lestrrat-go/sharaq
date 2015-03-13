@@ -21,7 +21,7 @@ fi
 docker run --rm \
     -v $PROJECTDIR:$WORKDIR\
     -e RELEASE_VERSION=$RELEASE_VERSION \
-    -e GITHUB_USERNAME=Peatix \
+    -e GITHUB_USERNAME=lestrrat \
     -e GITHUB_TOKEN=`cat $GITHUB_TOKEN_FILE` \
     sharaq-docker \
     /release-on-docker.sh
