@@ -13,11 +13,7 @@ are).
 
 You can do this by accessing the following URL
 
-    http://sharaq.example.com/?url=http://images.example.com/foo/bar/baz.jpg&device=small
-
-(Note: parameter name "device" is used here because initially the intention was to
-change the image size based on device type. But the spec has since been changed to 
-"resize to a particular preset size", so it should actually be changed at some point)
+    http://sharaq.example.com/?url=http://images.example.com/foo/bar/baz.jpg&preset=small
 
 ## In Real Life / Reverse Proxy
 
@@ -29,7 +25,7 @@ URLs look a bit nicer. For example, you could accept this in your reverse proxy:
 
 and transform that to below when passing to the actual sharaq app
 
-    http://upstream/?url=http://images.example.com/foo/bar/baz.jpg&device=small
+    http://upstream/?url=http://images.example.com/foo/bar/baz.jpg&preset=small
 
 ## Presets
 

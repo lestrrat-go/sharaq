@@ -116,6 +116,20 @@ func NewS3Backend(s *Server) (Backend, error) {
 	}, nil
 }
 
+var ErrInvalidPreset = errors.New("invalid preset parameter")
+func getPresetFromRequest(r *http.Request) (string, error) {
+	if preset := r.FormValue("preset"); preset != "" {
+		return preset, nil
+	}
+
+	// Work with deprecated "device" parameter
+	if device := r.FormValue("device"); device != "" {
+		return device, nil
+	}
+
+	return "", ErrInvalidPreset
+}
+
 func (s *S3Backend) Serve(w http.ResponseWriter, r *http.Request) {
 	u, err := getTargetURL(r)
 	if err != nil {
@@ -124,18 +138,23 @@ func (s *S3Backend) Serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	device := r.FormValue("device")
+	preset, err := getPresetFromRequest(r)
+	if err != nil {
+		log.Printf("Bad preset: %s", err)
+		http.Error(w, "Bad preset", 500)
+		return
+	}
 
-	cacheKey := MakeCacheKey("s3", device, u.String())
+	cacheKey := MakeCacheKey("s3", preset, u.String())
 	if cachedURL := s.cache.Lookup(cacheKey); cachedURL != "" {
-		log.Printf("Cached entry found for %s:%s -> %s", device, u.String(), cachedURL)
+		log.Printf("Cached entry found for %s:%s -> %s", preset, u.String(), cachedURL)
 		w.Header().Add("Location", cachedURL)
 		w.WriteHeader(301)
 		return
 	}
 
 	// create the proper url
-	specificURL := "http://" + s.bucketName + ".s3.amazonaws.com/" + device + u.Path
+	specificURL := "http://" + s.bucketName + ".s3.amazonaws.com/" + preset + u.Path
 
 	log.Printf("Making HEAD request to %s...", specificURL)
 	res, err := http.Head(specificURL)
@@ -268,11 +287,11 @@ func NewFSBackend(s *Server) (Backend, error) {
 	}, nil
 }
 
-func (f *FSBackend) EncodeFilename(device string, urlstr string) string {
+func (f *FSBackend) EncodeFilename(preset string, urlstr string) string {
 	// we are not going to be storing the requested path directly...
 	// need to encode it
 	h := crc64.New(crc64Table)
-	io.WriteString(h, device)
+	io.WriteString(h, preset)
 	io.WriteString(h, urlstr)
 	encodedPath := fmt.Sprintf("%x", h.Sum64())
 	return filepath.Join(f.root, encodedPath[0:1], encodedPath[0:2], encodedPath[0:3], encodedPath[0:4], encodedPath)
@@ -286,16 +305,21 @@ func (f *FSBackend) Serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	device := r.FormValue("device")
+	preset, err := getPresetFromRequest(r)
+	if err != nil {
+		log.Printf("Bad preset: %s", err)
+		http.Error(w, "Bad preset", 500)
+		return
+	}
 
-	cacheKey := MakeCacheKey("fs", device, u.String())
+	cacheKey := MakeCacheKey("fs", preset, u.String())
 	if cachedFile := f.cache.Lookup(cacheKey); cachedFile != "" {
-		log.Printf("Cached entry found for %s:%s -> %s", device, u.String(), cachedFile)
+		log.Printf("Cached entry found for %s:%s -> %s", preset, u.String(), cachedFile)
 		http.ServeFile(w, r, cachedFile)
 		return
 	}
 
-	path := f.EncodeFilename(device, u.String())
+	path := f.EncodeFilename(preset, u.String())
 	if _, err := os.Stat(path); err == nil {
 		// HIT. Serve this guy after filling the cache
 		f.cache.Set(cacheKey, path)
