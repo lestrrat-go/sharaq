@@ -165,11 +165,12 @@ func (s *Server) dumpConfig() {
 
 func (s *Server) Run() error {
 	if el := s.config.ErrorLog(); el != nil {
-		elh := rotatelogs.NewRotateLogs(el.LogFile)
-		elh.LinkName = el.LinkName
-		elh.MaxAge = el.MaxAge
-		elh.Offset = el.Offset
-		elh.RotationTime = el.RotationTime
+		elh := rotatelogs.New(
+			el.LogFile,
+			rotatelogs.WithLinkName(el.LinkName),
+			rotatelogs.WithMaxAge(el.MaxAge),
+			rotatelogs.WithRotationTime(el.RotationTime),
+		)
 		log.SetOutput(elh)
 	}
 	sigCh := make(chan os.Signal, 1)

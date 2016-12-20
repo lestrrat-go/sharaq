@@ -1,13 +1,11 @@
 package sharaq
 
-import (
-	"bytes"
-	"testing"
-)
+import "testing"
 
 func TestBackendSerialization(t *testing.T) {
 	c := &Config{}
-	b := &bytes.Buffer{}
+	b := bbpool.Get()
+	defer bbpool.Release(b)
 	b.WriteString(`{"BackendType":"s3"}`)
 	c.Parse(b)
 

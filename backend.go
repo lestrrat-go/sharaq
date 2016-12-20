@@ -1,7 +1,6 @@
 package sharaq
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -217,7 +216,9 @@ func (s *S3Backend) StoreTransformedContent(u *url.URL) error {
 	wg.Wait()
 	close(errCh)
 
-	buf := &bytes.Buffer{}
+	buf := bbpool.Get()
+	defer bbpool.Release(buf)
+
 	for err := range errCh {
 		fmt.Fprintf(buf, "Err: %s\n", err)
 	}
@@ -252,7 +253,9 @@ func (s *S3Backend) Delete(u *url.URL) error {
 	wg.Wait()
 	close(errCh)
 
-	buf := &bytes.Buffer{}
+	buf := bbpool.Get()
+	defer bbpool.Release(buf)
+
 	for err := range errCh {
 		fmt.Fprintf(buf, "Err: %s\n", err)
 	}
@@ -384,7 +387,9 @@ func (f *FSBackend) StoreTransformedContent(u *url.URL) error {
 	wg.Wait()
 	close(errCh)
 
-	buf := &bytes.Buffer{}
+	buf := bbpool.Get()
+	defer bbpool.Release(buf)
+
 	for err := range errCh {
 		fmt.Fprintf(buf, "Err: %s\n", err)
 	}
@@ -421,7 +426,9 @@ func (f *FSBackend) Delete(u *url.URL) error {
 	wg.Wait()
 	close(errCh)
 
-	buf := &bytes.Buffer{}
+	buf := bbpool.Get()
+	defer bbpool.Release(buf)
+
 	for err := range errCh {
 		fmt.Fprintf(buf, "Err: %s\n", err)
 	}

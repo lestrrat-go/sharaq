@@ -1,9 +1,11 @@
 package sharaq
 
 import (
+	"io"
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"regexp"
 	"sync"
 
@@ -51,18 +53,22 @@ func NewDispatcher(s *Server, g *Guardian) (*Dispatcher, error) {
 func (d *Dispatcher) Run(doneWg *sync.WaitGroup, exitCond *sync.Cond) {
 	defer doneWg.Done()
 
-	logger := apachelog.CombinedLog.Clone()
+	var output io.Writer = os.Stdout
 	if dl := d.logConfig; dl != nil {
-		dlh := rotatelogs.NewRotateLogs(dl.LogFile)
-		dlh.LinkName = dl.LinkName
-		dlh.MaxAge = dl.MaxAge
-		dlh.Offset = dl.Offset
-		dlh.RotationTime = dl.RotationTime
-		logger.SetOutput(dlh)
+		dlh := rotatelogs.New(
+			dl.LogFile,
+			rotatelogs.WithLinkName(dl.LinkName),
+			rotatelogs.WithMaxAge(dl.MaxAge),
+			rotatelogs.WithRotationTime(dl.RotationTime),
+		)
+		output = dlh
 
-		log.Printf("Dispatcher logging to %s", dlh.LogFile)
+		log.Printf("Dispatcher logging to %s", dl.LogFile)
 	}
-	srv := &http.Server{Addr: d.listenAddr, Handler: apachelog.WrapLoggingWriter(d, logger)}
+	srv := &http.Server{
+		Addr:    d.listenAddr,
+		Handler: apachelog.CombinedLog.Wrap(d, output),
+	}
 	ln, err := makeListener(d.listenAddr)
 	if err != nil {
 		log.Printf("Error binding to listen address: %s", err)

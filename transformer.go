@@ -86,8 +86,10 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 		img = b
 	}
 
+	buf := bbpool.Get()
+	defer bbpool.Release(buf)
+
 	// replay response with transformed image and updated content length
-	buf := new(bytes.Buffer)
 	fmt.Fprintf(buf, "%s %s\n", resp.Proto, resp.Status)
 	resp.Header.WriteSubset(buf, map[string]bool{"Content-Length": true})
 	fmt.Fprintf(buf, "Content-Length: %d\n\n", len(img))
@@ -127,7 +129,9 @@ type Options struct {
 var emptyOptions = Options{}
 
 func (o Options) String() string {
-	buf := new(bytes.Buffer)
+	buf := bbpool.Get()
+	defer bbpool.Release(buf)
+
 	fmt.Fprintf(buf, "%vx%v", o.Width, o.Height)
 	if o.Fit {
 		buf.WriteString(",fit")
@@ -306,7 +310,9 @@ func Transform(img []byte, opt Options) ([]byte, error) {
 	m = transformImage(m, opt)
 
 	// encode image
-	buf := new(bytes.Buffer)
+	buf := bbpool.Get()
+	defer bbpool.Release(buf)
+
 	switch format {
 	case "gif":
 		gif.Encode(buf, m, nil)

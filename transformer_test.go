@@ -1,7 +1,6 @@
 package sharaq
 
 import (
-	"bytes"
 	"image"
 	"image/color"
 	"image/draw"
@@ -187,7 +186,9 @@ func newImage(w, h int, pixels ...color.NRGBA) image.Image {
 func TestTransform(t *testing.T) {
 	src := newImage(2, 2, red, green, blue, yellow)
 
-	buf := new(bytes.Buffer)
+	buf := bbpool.Get()
+	defer bbpool.Release(buf)
+
 	png.Encode(buf, src)
 
 	tests := []struct {
@@ -201,7 +202,9 @@ func TestTransform(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		buf := new(bytes.Buffer)
+		buf := bbpool.Get()
+		defer bbpool.Release(buf)
+
 		tt.encode(buf, src)
 		in := buf.Bytes()
 
