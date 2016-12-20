@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"sync"
 
 	"github.com/lestrrat/go-apache-logformat"
@@ -37,18 +38,22 @@ func NewGuardian(s *Server) (*Guardian, error) {
 func (g *Guardian) Run(doneWg *sync.WaitGroup, exitCond *sync.Cond) {
 	defer doneWg.Done()
 
-	logger := apachelog.CombinedLog.Clone()
+	var output io.Writer = os.Stdout
 	if gl := g.logConfig; gl != nil {
-		glh := rotatelogs.NewRotateLogs(gl.LogFile)
-		glh.LinkName = gl.LinkName
-		glh.MaxAge = gl.MaxAge
-		glh.Offset = gl.Offset
-		glh.RotationTime = gl.RotationTime
-		logger.SetOutput(glh)
+		glh := rotatelogs.New(
+			gl.LogFile,
+			rotatelogs.WithLinkName(gl.LinkName),
+			rotatelogs.WithMaxAge(gl.MaxAge),
+			rotatelogs.WithRotationTime(gl.RotationTime),
+		)
+		output = glh
 
-		log.Printf("Guardian logging to %s", glh.LogFile)
+		log.Printf("Guardian logging to %s", gl.LogFile)
 	}
-	srv := &http.Server{Addr: g.listenAddr, Handler: apachelog.WrapLoggingWriter(g, logger)}
+	srv := &http.Server{
+		Addr:    g.listenAddr,
+		Handler: apachelog.CombinedLog.Wrap(g, output),
+	}
 
 	ln, err := makeListener(g.listenAddr)
 	if err != nil {
