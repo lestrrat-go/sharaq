@@ -130,11 +130,28 @@ don't want to use this except for testing and for debugging.
 }
 ```
 
-## URL Cache / Memcached
+## URL Cache
 
-Sharaq stores images known to have transformed content in a cache so that it can
-save on a roundtrip to check if it exists in the backend. Performance will degrade
-significantly if you don't use a cache, so ... just do it :)
+Sharaq stores images known to have transformed content in a cache so that it can save on a roundtrip to check if it exists in the backend. Performance will degrade significantly if you don't use a cache, so ... just do it :)
+
+### Redis backend
+
+To use Redis as your cache backend, compile using the `redis` tag.
+
+In your configuration file, specify the following parameter to specify the servers to use
+
+```
+{
+    ...
+    "RedisAddr": ["mycache:6397"]
+}
+```
+
+### Memcache backend
+
+To use memcached as your cache backend, compile using the `memcache` tag.
+
+In your configuration file, specify the following parameter to specify the servers to use
 
 ```
 {
