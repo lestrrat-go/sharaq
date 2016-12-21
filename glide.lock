@@ -1,5 +1,5 @@
-hash: 734f556bca4baacddef650e1442de265b2ca9bb7cdb9fb051ec100d58fb8487b
-updated: 2016-12-21T10:21:24.161028259+09:00
+hash: d2cca9ec436dac7492ba86a66ae618c4c89689cbae5ea03b5997734d2feff69f
+updated: 2016-12-21T11:17:54.060185916+09:00
 imports:
 - name: bitbucket.org/tebeka/strftime
   version: 2194253a23c0
@@ -30,6 +30,10 @@ imports:
   - listener
 - name: github.com/pkg/errors
   version: 248dadf4e9068a0b3e79f02ed0a610d935de5302
+- name: github.com/stretchr/testify
+  version: 2402e8e7a02fc811447d11f881aa9746cdc57983
+  subpackages:
+  - assert
 - name: github.com/vaughan0/go-ini
   version: a98ad7ee00ec53921f08832bc06ecf7fd600e6a1
 - name: go4.org
