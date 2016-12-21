@@ -2,6 +2,8 @@ language: go
 go:
   - 1.7.x
   - tip
+services:
+  - redis-server
 env:
   - CACHE=redis
   - CACHE=memcache
