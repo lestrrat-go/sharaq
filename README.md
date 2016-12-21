@@ -1,5 +1,7 @@
 # sharaq
 
+<img align="right" src="./etc/sharaq.png">
+
 Sharaq is an image transformer. You pass a URL to Sharaq, and if the transformed 
 image exists, it serves that. Otherwise, it serves the original, untransformed image
 while at the same time doing the transformation in the background, so that the
@@ -140,3 +142,7 @@ significantly if you don't use a cache, so ... just do it :)
     "MemcachedAddr": ["mycache:11211"]
 }
 ```
+
+# ACKNOWLEDGEMENTS
+
+This code was originally developed at Peatix Inc, and has since been transferred to Daisuke Maki (lestrrat)
