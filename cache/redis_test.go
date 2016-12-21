@@ -32,7 +32,7 @@ func TestRedis(t *testing.T) {
 		return
 	}
 
-	if !assert.NoError(t, c.Set(key, &v, 10), "Set should succeed") {
+	if !assert.NoError(t, c.Set(key, v, 10), "Set should succeed") {
 		return
 	}
 
