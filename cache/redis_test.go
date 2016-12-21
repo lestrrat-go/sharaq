@@ -3,7 +3,7 @@ package cache_test
 import (
 	"testing"
 
-	cache "github.com/builderscon/octav/octav/cache"
+	"github.com/lestrrat/sharaq/cache"
 	"github.com/stretchr/testify/assert"
 	redis "gopkg.in/redis.v5"
 )
@@ -21,7 +21,7 @@ func redisAvailable() bool {
 }
 
 func TestRedis(t *testing.T) {
-	var v, x  struct {
+	var v, x struct {
 		Foo string
 		Bar []byte
 	}
