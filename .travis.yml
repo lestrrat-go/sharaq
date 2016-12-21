@@ -12,4 +12,4 @@ cache:
 install:
   - make installdeps
 script:
-  - go test -v -tags $CACHE $(glide novendor)
+  - make test

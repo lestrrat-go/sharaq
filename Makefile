@@ -15,3 +15,9 @@ glide-$(GOOS)-$(GOARCH)/glide:
 	@mv $(GOOS)-$(GOARCH)/glide glide-$(GOOS)-$(GOARCH)
 	@rm -rf $(GOOS)-$(GOARCH)
 
+test:
+ifdef $(CACHE)
+	go test -v -tags $(CACHE) $(shell glide-$(GOOS)-$(GOARCH)/glide novendor)
+else
+	go test -v $(shell glide-$(GOOS)-$(GOARCH)/glide novendor)
+endif
