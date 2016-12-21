@@ -8,7 +8,7 @@ env:
 cache:
   directories:
     - vendor
-    - glide-$GOOS-$GOARCH
+    - glide-$(go version | awk '{ print $NF }' | tr '/' '-')
 install:
   - make installdeps
 script:
