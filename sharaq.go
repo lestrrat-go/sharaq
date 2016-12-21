@@ -46,6 +46,7 @@ type Config struct {
 	OptGuardianLog     *LogConfig        `json:"GuardianLog"`
 	OptImageTTL        time.Duration     `json:"ImageTTL"`
 	OptMemcachedAddr   []string          `json:"MemcachedAddr"`
+	OptRedisAddr       []string          `json:"RedisAddr"`
 	OptPresets         map[string]string `json:"Presets"`
 	OptSecretKey       string            `json:"SecretKey"`
 	OptStorageRoot     string            `json:"StorageRoot"`
@@ -82,6 +83,10 @@ func (c *Config) Parse(rdr io.Reader) error {
 	}
 	if len(c.OptMemcachedAddr) < 1 {
 		c.OptMemcachedAddr = []string{"127.0.0.1:11211"}
+	}
+
+	if len(c.OptRedisAddr) < 1 {
+		c.OptRedisAddr = []string{"127.0.0.1:6379"}
 	}
 
 	// Normalize shorthand form to full form
@@ -127,6 +132,7 @@ func (c Config) GuardianAddr() string       { return c.OptGuardianAddr }
 func (c Config) GuardianLog() *LogConfig    { return c.OptGuardianLog }
 func (c Config) ImageTTL() time.Duration    { return c.OptImageTTL }
 func (c Config) MemcachedAddr() []string    { return c.OptMemcachedAddr }
+func (c Config) RedisAddr() []string        { return c.OptRedisAddr }
 func (c Config) Presets() map[string]string { return c.OptPresets }
 func (c Config) SecretKey() string          { return c.OptSecretKey }
 func (c Config) StorageRoot() string        { return c.OptStorageRoot }

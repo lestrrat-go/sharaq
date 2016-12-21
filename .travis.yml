@@ -2,4 +2,14 @@ language: go
 go:
   - 1.7.x
   - tip
-
+env:
+  - CACHE=redis
+  - CACHE=memcache
+cache:
+  directories:
+    - vendor
+    - glide-$(GOOS)-$(GOARCH)
+install:
+  - make installdeps
+script:
+  - go test -v -tags $CACHE $(glide novendor)

@@ -4,23 +4,17 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
-
-	"github.com/bradfitz/gomemcache/memcache"
 )
 
-type URLCache struct {
-	Memcache *memcache.Client
-	Expires  int32
+type cacheBackend interface {
+	Get(string, interface{}) error
+	Set(string, []byte, int32) error
+	Delete(string) error
 }
 
-func NewURLCache(s *Server) *URLCache {
-	servers := s.config.MemcachedAddr()
-	expires := s.config.URLCacheExpires()
-
-	return &URLCache{
-		Memcache: memcache.New(servers...),
-		Expires: expires,
-	}
+type URLCache struct {
+	cache   cacheBackend
+	expires int32
 }
 
 func MakeCacheKey(v ...string) string {
@@ -33,18 +27,17 @@ func MakeCacheKey(v ...string) string {
 }
 
 func (c *URLCache) Lookup(key string) string {
-	if it, err := c.Memcache.Get(key); err == nil {
-		if len(it.Value) > 0 {
-			return string(it.Value)
-		}
+	var s string
+	if err := c.cache.Get(key, &s); err == nil {
+		return s
 	}
 	return ""
 }
 
-func (c *URLCache) Set(key, value string) {
-	c.Memcache.Set(&memcache.Item{Key: key, Value: []byte(value), Expiration: c.Expires})
+func (c *URLCache) Set(key, value string) error {
+	return c.cache.Set(key, []byte(value), c.expires)
 }
 
-func (c *URLCache) Delete(key string) {
-	c.Memcache.Delete(key)
+func (c *URLCache) Delete(key string) error {
+	return c.cache.Delete(key)
 }
