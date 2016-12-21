@@ -1,4 +1,4 @@
-package sharaq
+package urlcache
 
 import (
 	"crypto/md5"

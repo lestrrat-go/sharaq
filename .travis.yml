@@ -5,8 +5,8 @@ go:
 services:
   - redis-server
 env:
-  - CACHE=redis
-  - CACHE=memcache
+  - BACKEND=aws CACHE=redis
+  - BACKEND=aws CACHE=memcache
 cache:
   directories:
     - vendor

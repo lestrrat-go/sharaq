@@ -1,4 +1,4 @@
-package sharaq
+package transformer
 
 import (
 	"bufio"
@@ -17,29 +17,38 @@ import (
 	"strings"
 
 	"github.com/disintegration/imaging"
+	bufferpool "github.com/lestrrat/go-bufferpool"
 )
 
 // Transformer is based on imageproxy by Will Norris. Code was shamelessly
 // stolen from there.
 type Transformer struct {
+	bbpool *bufferpool.BufferPool
 	client *http.Client // client used to fetch remote URLs
 }
 
-func NewTransformer(s *Server) *Transformer {
+type TransformingTransport struct {
+	transport http.RoundTripper
+	client    *http.Client
+	bbpool    *bufferpool.BufferPool
+}
+
+type TransformResult struct {
+	Content     io.ReadCloser
+	ContentType string
+	Size        int64
+}
+
+func New(bbpool *bufferpool.BufferPool) *Transformer {
 	client := &http.Client{}
 	client.Transport = &TransformingTransport{
 		transport: http.DefaultTransport,
+		bbpool:    bbpool,
 		client:    client,
 	}
 	return &Transformer{
 		client: client,
 	}
-}
-
-type TransformResult struct {
-	content     io.ReadCloser
-	contentType string
-	size        int64
 }
 
 func (t *Transformer) Transform(options string, u string) (*TransformResult, error) {
@@ -53,11 +62,6 @@ func (t *Transformer) Transform(options string, u string) (*TransformResult, err
 	}
 
 	return &TransformResult{res.Body, res.Header.Get("Content-Type"), res.ContentLength}, nil
-}
-
-type TransformingTransport struct {
-	transport http.RoundTripper
-	client    *http.Client
 }
 
 func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -81,13 +85,13 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	}
 
 	opt := ParseOptions(req.URL.Fragment)
-	img, err := Transform(b, opt)
+	img, err := transform(b, opt, t.bbpool)
 	if err != nil {
 		img = b
 	}
 
-	buf := bbpool.Get()
-	defer bbpool.Release(buf)
+	buf := t.bbpool.Get()
+	defer t.bbpool.Release(buf)
 
 	// replay response with transformed image and updated content length
 	fmt.Fprintf(buf, "%s %s\n", resp.Proto, resp.Status)
@@ -129,15 +133,13 @@ type Options struct {
 var emptyOptions = Options{}
 
 func (o Options) String() string {
-	buf := bbpool.Get()
-	defer bbpool.Release(buf)
-
-	fmt.Fprintf(buf, "%vx%v", o.Width, o.Height)
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "%vx%v", o.Width, o.Height)
 	if o.Fit {
 		buf.WriteString(",fit")
 	}
 	if o.Rotate != 0 {
-		fmt.Fprintf(buf, ",r%d", o.Rotate)
+		fmt.Fprintf(&buf, ",r%d", o.Rotate)
 	}
 	if o.FlipVertical {
 		buf.WriteString(",fv")
@@ -294,7 +296,7 @@ var resampleFilter = imaging.Lanczos
 // Transform the provided image.  img should contain the raw bytes of an
 // encoded image in one of the supported formats (gif, jpeg, or png).  The
 // bytes of a similarly encoded image is returned.
-func Transform(img []byte, opt Options) ([]byte, error) {
+func transform(img []byte, opt Options, bbpool *bufferpool.BufferPool) ([]byte, error) {
 	if opt == emptyOptions {
 		// bail if no transformation was requested
 		return img, nil

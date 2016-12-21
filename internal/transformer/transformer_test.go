@@ -1,4 +1,4 @@
-package sharaq
+package transformer
 
 import (
 	"image"
@@ -13,7 +13,10 @@ import (
 	"testing"
 
 	"github.com/disintegration/imaging"
+	bufferpool "github.com/lestrrat/go-bufferpool"
 )
+
+var bbpool = bufferpool.New()
 
 func TestOptions_String(t *testing.T) {
 	tests := []struct {
@@ -208,7 +211,7 @@ func TestTransform(t *testing.T) {
 		tt.encode(buf, src)
 		in := buf.Bytes()
 
-		out, err := Transform(in, emptyOptions)
+		out, err := transform(in, emptyOptions, bbpool)
 		if err != nil {
 			t.Errorf("Transform with encoder %s returned unexpected error: %v", err)
 		}
@@ -216,7 +219,7 @@ func TestTransform(t *testing.T) {
 			t.Errorf("Transform with with encoder %s with empty options returned modified result")
 		}
 
-		out, err = Transform(in, Options{Width: -1, Height: -1})
+		out, err = transform(in, Options{Width: -1, Height: -1}, bbpool)
 		if err != nil {
 			t.Errorf("Transform with encoder %s returned unexpected error: %v", tt.name, err)
 		}
@@ -228,7 +231,7 @@ func TestTransform(t *testing.T) {
 		}
 	}
 
-	if _, err := Transform([]byte{}, Options{Width: 1}); err == nil {
+	if _, err := transform([]byte{}, Options{Width: 1}, bbpool); err == nil {
 		t.Errorf("Transform with invalid image input did not return expected err")
 	}
 }

@@ -13,20 +13,6 @@ import (
 	"github.com/lestrrat/go-file-rotatelogs"
 )
 
-type Dispatcher struct {
-	backend    Backend
-	listenAddr string
-	bucketName string
-	whitelist  []*regexp.Regexp
-	cache      *URLCache
-	logConfig  *LogConfig
-	guardian   *Guardian
-}
-
-type DispatcherConfig interface {
-	DispatcherAddr() string
-}
-
 func NewDispatcher(s *Server, g *Guardian) (*Dispatcher, error) {
 	c := s.config
 

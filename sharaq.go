@@ -17,6 +17,8 @@ import (
 
 	"github.com/lestrrat/go-file-rotatelogs"
 	"github.com/lestrrat/go-server-starter/listener"
+	"github.com/lestrrat/sharaq/internal/transformer"
+	"github.com/lestrrat/sharaq/internal/urlcache"
 )
 
 var crc64Table *crc64.Table
@@ -139,13 +141,6 @@ func (c Config) StorageRoot() string        { return c.OptStorageRoot }
 func (c Config) URLCacheExpires() int32     { return c.OptURLCacheExpires }
 func (c Config) Whitelist() []string        { return c.OptWhitelist }
 
-type Server struct {
-	backend     Backend
-	config      *Config
-	cache       *URLCache
-	transformer *Transformer
-}
-
 func NewServer(c *Config) *Server {
 	s := &Server{
 		config: c,
@@ -195,8 +190,8 @@ LOOP:
 		}
 
 		log.Printf("Using url cache at %v", s.config.MemcachedAddr())
-		s.cache = NewURLCache(s)
-		s.transformer = NewTransformer(s)
+		s.cache = urlcache.New(s.config)
+		s.transformer = transformer.New(bbpool)
 		b, err := NewBackend(s)
 		if err != nil {
 			return err
