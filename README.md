@@ -1,6 +1,6 @@
 # sharaq
 
-<img align="right" src="./etc/sharaq.png">
+<img align="right" src="./etc/sharaq.png" width="213" height="323">
 
 Sharaq is an image transformer. You pass a URL to Sharaq, and if the transformed 
 image exists, it serves that. Otherwise, it serves the original, untransformed image
