@@ -8,7 +8,7 @@ env:
 cache:
   directories:
     - vendor
-    - glide-$(GOOS)-$(GOARCH)
+    - glide-$GOOS-$GOARCH
 install:
   - make installdeps
 script:
