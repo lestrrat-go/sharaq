@@ -21,12 +21,8 @@ func redisAvailable() bool {
 }
 
 func TestRedis(t *testing.T) {
-	var v, x struct {
-		Foo string
-		Bar []byte
-	}
-	v.Foo = "Hello"
-	v.Bar = []byte("World!")
+	var v, x []byte
+	v = []byte("Hello")
 
 	c := cache.NewRedis([]string{redisAddr})
 
