@@ -1,0 +1,80 @@
+hash: d2cca9ec436dac7492ba86a66ae618c4c89689cbae5ea03b5997734d2feff69f
+updated: 2016-12-21T11:17:54.060185916+09:00
+imports:
+- name: bitbucket.org/tebeka/strftime
+  version: 2194253a23c0
+- name: github.com/bradfitz/gomemcache
+  version: 2fafb84a66c4911e11a8f50955b01e74fe3ab9c5
+  subpackages:
+  - memcache
+- name: github.com/disintegration/imaging
+  version: 7cbe056568779e3d987cd1b5e3dbe12c4f79f1ff
+- name: github.com/goamz/goamz
+  version: fb002ae75f50beb93874fa6ce2c861e488ce08a0
+  subpackages:
+  - aws
+  - s3
+- name: github.com/golang/protobuf
+  version: 8ee79997227bf9b34611aee7946ae64735e6fd93
+  subpackages:
+  - proto
+- name: github.com/lestrrat/go-apache-logformat
+  version: aef9f5955f335dc2fbb969c95b849347b15e36c9
+- name: github.com/lestrrat/go-bufferpool
+  version: a1a4a9cf09b4f3e6d263ba25cf09de3276e1d589
+- name: github.com/lestrrat/go-file-rotatelogs
+  version: ab335c655133cea61d8164853c1ed0e97d6c77cb
+- name: github.com/lestrrat/go-server-starter
+  version: f9749b3a958c4aaa5c455e6a263953ebefb254b6
+  subpackages:
+  - listener
+- name: github.com/pkg/errors
+  version: 248dadf4e9068a0b3e79f02ed0a610d935de5302
+- name: github.com/stretchr/testify
+  version: 2402e8e7a02fc811447d11f881aa9746cdc57983
+  subpackages:
+  - assert
+- name: github.com/vaughan0/go-ini
+  version: a98ad7ee00ec53921f08832bc06ecf7fd600e6a1
+- name: go4.org
+  version: 09d86de304dc27e636298361bbfee4ac6ab04f21
+  subpackages:
+  - syncutil/singleflight
+- name: golang.org/x/image
+  version: f1b1ff53e10e288d0ab6f161067c0a69b72cee28
+  subpackages:
+  - bmp
+  - tiff
+  - tiff/lzw
+- name: golang.org/x/net
+  version: 45e771701b814666a7eb299e6c7a57d0b1799e91
+  subpackages:
+  - context
+- name: google.golang.org/appengine
+  version: 08a149cfaee099e6ce4be01c0113a78c85ee1dee
+  subpackages:
+  - datastore
+  - internal
+  - internal/datastore
+  - internal/app_identity
+  - internal/modules
+  - internal/base
+  - internal/log
+  - internal/remote_api
+- name: gopkg.in/go-redis/cache.v5
+  version: 2766414f72791c8b0fa60409aa6e27867e9ad0c1
+  subpackages:
+  - lrucache
+- name: gopkg.in/redis.v5
+  version: 5e76db680467ebce5495cc2159a9289a6851d773
+  subpackages:
+  - internal
+  - internal/consistenthash
+  - internal/hashtag
+  - internal/pool
+  - internal/proto
+- name: gopkg.in/vmihailenco/msgpack.v2
+  version: 94af6ea04d2da6a09d6914ca79b8fb94f3acbba4
+  subpackages:
+  - codes
+devImports: []

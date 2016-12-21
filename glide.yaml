@@ -1,0 +1,23 @@
+package: github.com/lestrrat/sharaq
+import:
+- package: github.com/bradfitz/gomemcache
+  subpackages:
+  - memcache
+- package: github.com/disintegration/imaging
+- package: github.com/goamz/goamz
+  subpackages:
+  - aws
+  - s3
+- package: github.com/lestrrat/go-apache-logformat
+- package: github.com/lestrrat/go-bufferpool
+- package: github.com/lestrrat/go-file-rotatelogs
+- package: github.com/lestrrat/go-server-starter
+  subpackages:
+  - listener
+- package: github.com/pkg/errors
+- package: gopkg.in/go-redis/cache.v5
+- package: gopkg.in/redis.v5
+- package: gopkg.in/vmihailenco/msgpack.v2
+- package: github.com/stretchr/testify
+  subpackages:
+  - assert
