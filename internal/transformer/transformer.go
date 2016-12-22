@@ -106,9 +106,9 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	defer bbpool.Release(buf)
 
 	// replay response with transformed image and updated content length
-	fmt.Fprintf(buf, "%s %s\n", resp.Proto, resp.Status)
+	fmt.Fprintf(buf, "%s %s\r\n", resp.Proto, resp.Status)
 	resp.Header.WriteSubset(buf, map[string]bool{"Content-Length": true})
-	fmt.Fprintf(buf, "Content-Length: %d\n\n", len(img))
+	fmt.Fprintf(buf, "Content-Length: %d\r\n\r\n", len(img))
 
 	if _, err := buf.Write(img); err != nil {
 		return nil, errors.Wrap(err, `failed to write transformed image`)
@@ -119,9 +119,9 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	// immediately finish reading.
 	// Without this, we run the risk of releasing the buffer
 	// before bufio gets the chance to read it all
-	outbuf := bytes.NewBuffer(buf.Bytes())
+	outbuf := bufio.NewReader(bytes.NewBuffer(buf.Bytes()))
 
-	return http.ReadResponse(bufio.NewReader(outbuf), req)
+	return http.ReadResponse(outbuf, req)
 }
 
 // URLError reports a malformed URL error.
