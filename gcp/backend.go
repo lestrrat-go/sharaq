@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"path"
 
 	"cloud.google.com/go/storage"
 	"golang.org/x/oauth2/google"
@@ -98,8 +99,13 @@ func (s *StorageBackend) Serve(w http.ResponseWriter, r *http.Request) {
 	}()
 
 FALLBACK:
+	log.Printf("Fallback to serving original content at %s", u)
 	w.Header().Add("Location", u.String())
 	w.WriteHeader(302)
+}
+
+func makeStoragePath(preset string, u *url.URL) string {
+	return path.Join(preset, u.Host, u.Path)
 }
 
 func (s *StorageBackend) StoreTransformedContent(ctx context.Context, u *url.URL) error {
@@ -127,11 +133,11 @@ func (s *StorageBackend) StoreTransformedContent(ctx context.Context, u *url.URL
 				return errors.Wrap(err, `failed to transform image`)
 			}
 
-			// good, done. save it to S3
-			path := "/" + preset + u.Path
-			log.Printf("Writing to Google Storage %s...", path)
+			// good, done. save it to Google Storage
+			p := makeStoragePath(preset, u)
+			log.Printf("Writing to Google Storage %s...", p)
 
-			wc := bkt.Object(path).NewWriter(ctx)
+			wc := bkt.Object(p).NewWriter(ctx)
 
 			wc.ContentType = res.ContentType
 			wc.ACL = []storage.ACLRule{
@@ -139,7 +145,7 @@ func (s *StorageBackend) StoreTransformedContent(ctx context.Context, u *url.URL
 			}
 
 			if _, err := io.Copy(wc, res.Content); err != nil {
-				return errors.Wrapf(err, `failed to write data to %s`, path)
+				return errors.Wrapf(err, `failed to write data to %s`, p)
 			}
 
 			return errors.Wrap(wc.Close(), `failed to properly close writer for google storage`)
@@ -166,9 +172,9 @@ func (s *StorageBackend) Delete(ctx context.Context, u *url.URL) error {
 			// cache than to accidentally have one linger
 			defer s.cache.Delete(urlcache.MakeCacheKey(preset, u.String()))
 
-			path := "/" + preset + u.Path
-			log.Printf(" + DELETE Google Storage entry %s\n", path)
-			return bkt.Object(path).Delete(ctx)
+			p := makeStoragePath(preset, u)
+			log.Printf(" + DELETE Google Storage entry %s\n", p)
+			return bkt.Object(p).Delete(ctx)
 		})
 	}
 
