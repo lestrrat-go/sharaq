@@ -50,8 +50,6 @@ func (s *StorageBackend) getClient(ctx context.Context) (*storage.Client, error)
 }
 
 func (s *StorageBackend) Serve(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
 	u, err := util.GetTargetURL(r)
 	if err != nil {
 		log.Printf("Bad url: %s", err)
@@ -94,6 +92,11 @@ func (s *StorageBackend) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go func() {
+		// Because this is run in a separate goroutine, we must
+		// use a different context
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
 		if err := s.StoreTransformedContent(ctx, u); err != nil {
 			log.Printf("StorageBackend: transformation failed: %s", err)
 		}
