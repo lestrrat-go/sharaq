@@ -139,7 +139,7 @@ func (s *S3Backend) StoreTransformedContent(u *url.URL) error {
 }
 
 func (s *S3Backend) Delete(u *url.URL) error {
-	wg := &sync.WaitGroup{}
+	var wg sync.WaitGroup
 	errCh := make(chan error, len(s.presets))
 	for preset := range s.presets {
 		wg.Add(1)
@@ -155,7 +155,7 @@ func (s *S3Backend) Delete(u *url.URL) error {
 			// fallthrough here regardless, because it's better to lose the
 			// cache than to accidentally have one linger
 			s.cache.Delete(urlcache.MakeCacheKey(preset, u.String()))
-		}(wg, preset, errCh)
+		}(&wg, preset, errCh)
 	}
 
 	wg.Wait()

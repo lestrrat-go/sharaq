@@ -1,72 +1,129 @@
-hash: d2cca9ec436dac7492ba86a66ae618c4c89689cbae5ea03b5997734d2feff69f
-updated: 2016-12-21T11:17:54.060185916+09:00
+hash: 4588e90c55cb5306648b2bf71903356794c4be06dd37eb6eec2a848fd808a63f
+updated: 2016-12-22T10:29:07.855492314+09:00
 imports:
 - name: bitbucket.org/tebeka/strftime
-  version: 2194253a23c0
+  version: ""
+- name: cloud.google.com/go
+  version: 3c4c8cc11d151d76587802cb55dd7b80beca832b
+  subpackages:
+  - storage
+  - internal
+  - internal/optional
+  - compute/metadata
 - name: github.com/bradfitz/gomemcache
-  version: 2fafb84a66c4911e11a8f50955b01e74fe3ab9c5
+  version: 0f4bf559a884848deca359d812f09aab0e0fd9b3
   subpackages:
   - memcache
 - name: github.com/disintegration/imaging
-  version: 7cbe056568779e3d987cd1b5e3dbe12c4f79f1ff
+  version: 0f4bf559a884848deca359d812f09aab0e0fd9b3
 - name: github.com/goamz/goamz
-  version: fb002ae75f50beb93874fa6ce2c861e488ce08a0
+  version: 0f4bf559a884848deca359d812f09aab0e0fd9b3
   subpackages:
   - aws
   - s3
 - name: github.com/golang/protobuf
-  version: 8ee79997227bf9b34611aee7946ae64735e6fd93
+  version: 0f4bf559a884848deca359d812f09aab0e0fd9b3
   subpackages:
   - proto
+- name: github.com/googleapis/gax-go
+  version: da06d194a00e19ce00d9011a13931c3f6f6887c7
 - name: github.com/lestrrat/go-apache-logformat
-  version: aef9f5955f335dc2fbb969c95b849347b15e36c9
+  version: 0f4bf559a884848deca359d812f09aab0e0fd9b3
 - name: github.com/lestrrat/go-bufferpool
-  version: a1a4a9cf09b4f3e6d263ba25cf09de3276e1d589
+  version: 0f4bf559a884848deca359d812f09aab0e0fd9b3
 - name: github.com/lestrrat/go-file-rotatelogs
-  version: ab335c655133cea61d8164853c1ed0e97d6c77cb
+  version: 0f4bf559a884848deca359d812f09aab0e0fd9b3
 - name: github.com/lestrrat/go-server-starter
-  version: f9749b3a958c4aaa5c455e6a263953ebefb254b6
+  version: 0f4bf559a884848deca359d812f09aab0e0fd9b3
   subpackages:
   - listener
 - name: github.com/pkg/errors
-  version: 248dadf4e9068a0b3e79f02ed0a610d935de5302
+  version: 0f4bf559a884848deca359d812f09aab0e0fd9b3
 - name: github.com/stretchr/testify
   version: 2402e8e7a02fc811447d11f881aa9746cdc57983
   subpackages:
   - assert
 - name: github.com/vaughan0/go-ini
-  version: a98ad7ee00ec53921f08832bc06ecf7fd600e6a1
+  version: 0f4bf559a884848deca359d812f09aab0e0fd9b3
 - name: go4.org
-  version: 09d86de304dc27e636298361bbfee4ac6ab04f21
+  version: 0f4bf559a884848deca359d812f09aab0e0fd9b3
   subpackages:
   - syncutil/singleflight
 - name: golang.org/x/image
-  version: f1b1ff53e10e288d0ab6f161067c0a69b72cee28
+  version: 0f4bf559a884848deca359d812f09aab0e0fd9b3
   subpackages:
   - bmp
   - tiff
   - tiff/lzw
 - name: golang.org/x/net
-  version: 45e771701b814666a7eb299e6c7a57d0b1799e91
+  version: 0f4bf559a884848deca359d812f09aab0e0fd9b3
   subpackages:
   - context
+  - context/ctxhttp
+  - http2
+  - trace
+  - http2/hpack
+  - idna
+  - lex/httplex
+  - internal/timeseries
+- name: golang.org/x/oauth2
+  version: 314dd2c0bf3ebd592ec0d20847d27e79d0dbe8dd
+  subpackages:
+  - google
+  - internal
+  - jws
+  - jwt
+- name: golang.org/x/sync
+  version: 450f422ab23cf9881c94e2db30cac0eb1b7cf80c
+  subpackages:
+  - errgroup
+- name: google.golang.org/api
+  version: 55146ba61254fdb1c26d65ff3c04bc1611ad73fb
+  subpackages:
+  - option
+  - googleapi
+  - iterator
+  - storage/v1
+  - transport
+  - internal
+  - googleapi/internal/uritemplates
+  - gensupport
+  - googleapi/transport
 - name: google.golang.org/appengine
-  version: 08a149cfaee099e6ce4be01c0113a78c85ee1dee
+  version: 0f4bf559a884848deca359d812f09aab0e0fd9b3
   subpackages:
   - datastore
   - internal
   - internal/datastore
+  - socket
+  - urlfetch
   - internal/app_identity
   - internal/modules
   - internal/base
   - internal/log
   - internal/remote_api
+  - internal/socket
+  - internal/urlfetch
+- name: google.golang.org/grpc
+  version: 9d682f9293b408c42d17c587d0e2a31237ac3f10
+  subpackages:
+  - codes
+  - credentials
+  - credentials/oauth
+  - naming
+  - grpclog
+  - internal
+  - metadata
+  - stats
+  - tap
+  - transport
+  - peer
 - name: gopkg.in/go-redis/cache.v5
-  version: 2766414f72791c8b0fa60409aa6e27867e9ad0c1
+  version: 0f4bf559a884848deca359d812f09aab0e0fd9b3
   subpackages:
   - lrucache
 - name: gopkg.in/redis.v5
-  version: 5e76db680467ebce5495cc2159a9289a6851d773
+  version: 0f4bf559a884848deca359d812f09aab0e0fd9b3
   subpackages:
   - internal
   - internal/consistenthash
@@ -74,7 +131,7 @@ imports:
   - internal/pool
   - internal/proto
 - name: gopkg.in/vmihailenco/msgpack.v2
-  version: 94af6ea04d2da6a09d6914ca79b8fb94f3acbba4
+  version: 0f4bf559a884848deca359d812f09aab0e0fd9b3
   subpackages:
   - codes
 devImports: []
