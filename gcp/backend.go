@@ -141,7 +141,8 @@ func (s *StorageBackend) StoreTransformedContent(ctx context.Context, u *url.URL
 			if _, err := io.Copy(wc, res.Content); err != nil {
 				return errors.Wrapf(err, `failed to write data to %s`, path)
 			}
-			return nil
+
+			return errors.Wrap(wc.Close(), `failed to properly close writer for google storage`)
 		})
 	}
 	return grp.Wait()
