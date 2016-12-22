@@ -9,7 +9,6 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -91,15 +90,13 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	}
 
 	defer resp.Body.Close()
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
+
+	img := bbpool.Get()
+	defer bbpool.Release(img)
 
 	opt := ParseOptions(req.URL.Fragment)
-	img, err := transform(b, opt)
-	if err != nil {
-		img = b
+	if err := transform(img, resp.Body, opt); err != nil {
+		return nil, err
 	}
 
 	buf := bbpool.Get()
@@ -108,18 +105,23 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	// replay response with transformed image and updated content length
 	fmt.Fprintf(buf, "%s %s\r\n", resp.Proto, resp.Status)
 	resp.Header.WriteSubset(buf, map[string]bool{"Content-Length": true})
-	fmt.Fprintf(buf, "Content-Length: %d\r\n\r\n", len(img))
+	fmt.Fprintf(buf, "Content-Length: %d\r\n\r\n", img.Len())
 
-	if _, err := buf.Write(img); err != nil {
+	if _, err := img.WriteTo(buf); err != nil {
 		return nil, errors.Wrap(err, `failed to write transformed image`)
 	}
 
 	// This buffer may NOT be allocated from the bufferpool
 	// because it is then used by bufio.Reader, which doesn't
 	// immediately finish reading.
+	//
 	// Without this, we run the risk of releasing the buffer
 	// before bufio gets the chance to read it all
-	outbuf := bufio.NewReader(bytes.NewBuffer(buf.Bytes()))
+	//
+	// Furthermore, we copy the bytes here (by creating a string)
+	// to make absolutely sure that we don't accidentally reuse
+	// the buffer somewhere
+	outbuf := bufio.NewReader(bytes.NewBufferString(buf.String()))
 
 	return http.ReadResponse(outbuf, req)
 }
@@ -318,35 +320,32 @@ var resampleFilter = imaging.Lanczos
 // Transform the provided image.  img should contain the raw bytes of an
 // encoded image in one of the supported formats (gif, jpeg, or png).  The
 // bytes of a similarly encoded image is returned.
-func transform(img []byte, opt Options) ([]byte, error) {
+func transform(dst io.Writer, img io.Reader, opt Options) error {
 	if opt == emptyOptions {
 		// bail if no transformation was requested
-		return img, nil
+		return nil
 	}
 
 	log.Printf("Transforming image with rule '%#v'", opt)
 	// decode image
-	m, format, err := image.Decode(bytes.NewReader(img))
+	m, format, err := image.Decode(img)
 	if err != nil {
-		return nil, err
+		return errors.Wrap(err, `failed to decode image`)
 	}
 
 	m = transformImage(m, opt)
 
 	// encode image
-	buf := bbpool.Get()
-	defer bbpool.Release(buf)
-
 	switch format {
 	case "gif":
-		gif.Encode(buf, m, nil)
+		gif.Encode(dst, m, nil)
 	case "jpeg":
-		jpeg.Encode(buf, m, &jpeg.Options{Quality: jpegQuality})
+		jpeg.Encode(dst, m, &jpeg.Options{Quality: jpegQuality})
 	case "png":
-		png.Encode(buf, m)
+		png.Encode(dst, m)
 	}
 
-	return buf.Bytes(), nil
+	return nil
 }
 
 // transformImage modifies the image m based on the transformations specified
