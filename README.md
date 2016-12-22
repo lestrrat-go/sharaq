@@ -141,6 +141,10 @@ In your configuration file, specify the following parameter to specify the serve
 
 ```json
 {
+  "URLCache": {
+    "BackendType": "Redis",
+    "DefaultExpires": 60
+  },
   "Redis" {
     "Addr": ["mycache:6397"]
   }
@@ -153,8 +157,12 @@ In your configuration file, specify the following parameter to specify the serve
 
 ```json
 {
-  "Memcached": {
-    "Addr": ["mycache:11211"]
+  "URLCache": {
+    "BackendType": "Memcached",
+    "DefaultExpires": 60,
+    "Memcached": {
+      "Addr": ["mycache:11211"]
+    }
   }
 }
 ```

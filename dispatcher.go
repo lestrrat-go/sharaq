@@ -16,8 +16,8 @@ import (
 func NewDispatcher(s *Server, g *Guardian) (*Dispatcher, error) {
 	c := s.config
 
-	whitelist := make([]*regexp.Regexp, len(s.config.Whitelist()))
-	for i, pat := range s.config.Whitelist() {
+	whitelist := make([]*regexp.Regexp, len(s.config.Whitelist))
+	for i, pat := range s.config.Whitelist {
 		re, err := regexp.Compile(pat)
 		if err != nil {
 			return nil, err
@@ -27,11 +27,10 @@ func NewDispatcher(s *Server, g *Guardian) (*Dispatcher, error) {
 
 	return &Dispatcher{
 		backend:    s.backend,
-		listenAddr: c.DispatcherAddr(),
-		bucketName: c.BucketName(),
+		listenAddr: c.Dispatcher.Listen,
 		cache:      s.cache,
 		guardian:   g,
-		logConfig:  s.config.DispatcherLog(),
+		logConfig:  c.Dispatcher.AccessLog,
 		whitelist:  whitelist,
 	}, nil
 }

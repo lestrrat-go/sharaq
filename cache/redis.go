@@ -17,6 +17,10 @@ type Redis struct {
 	magic  string
 }
 
+type RedisConfig struct {
+	Addr []string
+}
+
 type RedisOption interface {
 	Configure(*Redis)
 }

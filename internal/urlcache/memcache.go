@@ -1,20 +1,14 @@
-// +build memcache
-
 package urlcache
 
 import "github.com/lestrrat/sharaq/cache"
 
-type ConfigSource interface {
-	MemcachedAddr() []string
-	URLCacheExpires() int32
-}
-
-func New(c ConfigSource) *URLCache {
-	servers := c.MemcachedAddr()
-	expires := c.URLCacheExpires()
+func newMemcached(c *Config) (*URLCache, error) {
+	memd := c.Memcached
+	servers := memd.Addr
+	expires := c.Expires
 
 	return &URLCache{
 		cache:   cache.NewMemcache(servers...),
 		expires: expires,
-	}
+	}, nil
 }

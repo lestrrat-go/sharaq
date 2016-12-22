@@ -9,14 +9,13 @@ import (
 
 	"github.com/goamz/goamz/aws"
 	"github.com/goamz/goamz/s3"
-	bufferpool "github.com/lestrrat/go-bufferpool"
+	"github.com/lestrrat/sharaq/internal/bbpool"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"
 )
 
 type S3Backend struct {
-	bbpool      *bufferpool.BufferPool
 	bucketName  string
 	bucket      *s3.Bucket
 	cache       *urlcache.URLCache
@@ -24,25 +23,18 @@ type S3Backend struct {
 	transformer *transformer.Transformer
 }
 
-type ConfigSource interface {
-	AccessKey() string
-	SecretKey() string
-	BucketName() string
-	Presets() map[string]string
-}
-
-func NewBackend(c ConfigSource, cache *urlcache.URLCache, trans *transformer.Transformer) (*S3Backend, error) {
+func NewBackend(c *Config, cache *urlcache.URLCache, trans *transformer.Transformer, presets map[string]string) (*S3Backend, error) {
 	auth := aws.Auth{
-		AccessKey: c.AccessKey(),
-		SecretKey: c.SecretKey(),
+		AccessKey: c.AccessKey,
+		SecretKey: c.SecretKey,
 	}
 
 	s3o := s3.New(auth, aws.APNortheast)
 	return &S3Backend{
-		bucket:      s3o.Bucket(c.BucketName()),
-		bucketName:  c.BucketName(),
+		bucket:      s3o.Bucket(c.BucketName),
+		bucketName:  c.BucketName,
 		cache:       cache,
-		presets:     c.Presets(),
+		presets:     presets,
 		transformer: trans,
 	}, nil
 }
@@ -132,8 +124,8 @@ func (s *S3Backend) StoreTransformedContent(u *url.URL) error {
 	wg.Wait()
 	close(errCh)
 
-	buf := s.bbpool.Get()
-	defer s.bbpool.Release(buf)
+	buf := bbpool.Get()
+	defer bbpool.Release(buf)
 
 	for err := range errCh {
 		fmt.Fprintf(buf, "Err: %s\n", err)
@@ -169,8 +161,8 @@ func (s *S3Backend) Delete(u *url.URL) error {
 	wg.Wait()
 	close(errCh)
 
-	buf := s.bbpool.Get()
-	defer s.bbpool.Release(buf)
+	buf := bbpool.Get()
+	defer bbpool.Release(buf)
 
 	for err := range errCh {
 		fmt.Fprintf(buf, "Err: %s\n", err)

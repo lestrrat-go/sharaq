@@ -20,11 +20,4 @@ ifdef $(CACHE)
 	$(eval TAGS := "$(TAGS) $(CACHE)")
 endif
 
-ifneq ($(BACKEND), )
-ifeq ($(TAGS), )
-	$(eval TAGS := $(BACKEND))
-else
-	$(eval TAGS := "$(TAGS) $(BACKEND)")
-endif
-endif
 	go test -v -tags '$(TAGS)' $(shell glide-$(GOOS)-$(GOARCH)/glide novendor)

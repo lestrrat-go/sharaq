@@ -13,10 +13,8 @@ import (
 	"testing"
 
 	"github.com/disintegration/imaging"
-	bufferpool "github.com/lestrrat/go-bufferpool"
+	"github.com/lestrrat/sharaq/internal/bbpool"
 )
-
-var bbpool = bufferpool.New()
 
 func TestOptions_String(t *testing.T) {
 	tests := []struct {

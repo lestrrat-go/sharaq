@@ -1,8 +1,8 @@
-package sharaq
+package fs
 
 import (
+	"errors"
 	"fmt"
-	"hash/crc64"
 	"io"
 	"log"
 	"net/http"
@@ -12,12 +12,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lestrrat/sharaq/internal/bbpool"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"
 )
 
-type FSBackend struct {
+type Backend struct {
 	root        string
 	cache       *urlcache.URLCache
 	imageTTL    time.Duration
@@ -25,34 +26,28 @@ type FSBackend struct {
 	transformer *transformer.Transformer
 }
 
-func NewFSBackend(s *Server) (Backend, error) {
-	c := s.config
-
-	root := c.StorageRoot()
+func NewBackend(c *Config, cache *urlcache.URLCache, trans *transformer.Transformer, presets map[string]string) (*Backend, error) {
+	root := c.Root
 	if root == "" {
-		return nil, fmt.Errorf("FSBackend: 'StorageRoot' is required")
+		return nil, errors.New("fs backend: 'Root' is required")
 	}
-	log.Printf("FSBackend: storing files under %s", root)
-	return &FSBackend{
+	log.Printf("Backend: storing files under %s", root)
+	return &Backend{
 		root:        root,
-		cache:       s.cache,
-		imageTTL:    c.ImageTTL(),
-		presets:     c.Presets(),
-		transformer: s.transformer,
+		cache:       cache,
+		imageTTL:    c.ImageTTL,
+		presets:     presets,
+		transformer: trans,
 	}, nil
 }
 
-func (f *FSBackend) EncodeFilename(preset string, urlstr string) string {
+func (f *Backend) EncodeFilename(preset string, urlstr string) string {
 	// we are not going to be storing the requested path directly...
 	// need to encode it
-	h := crc64.New(crc64Table)
-	io.WriteString(h, preset)
-	io.WriteString(h, urlstr)
-	encodedPath := fmt.Sprintf("%x", h.Sum64())
-	return filepath.Join(f.root, encodedPath[0:1], encodedPath[0:2], encodedPath[0:3], encodedPath[0:4], encodedPath)
+	return filepath.Join(f.root, util.HashedPath(preset, urlstr))
 }
 
-func (f *FSBackend) Serve(w http.ResponseWriter, r *http.Request) {
+func (f *Backend) Serve(w http.ResponseWriter, r *http.Request) {
 	u, err := util.GetTargetURL(r)
 	if err != nil {
 		log.Printf("Bad url: %s", err)
@@ -84,7 +79,7 @@ func (f *FSBackend) Serve(w http.ResponseWriter, r *http.Request) {
 	// transformed files are not available. Let the client received the original one
 	go func() {
 		if err := f.StoreTransformedContent(u); err != nil {
-			log.Printf("FSBackend: transformation failed: %s", err)
+			log.Printf("Backend: transformation failed: %s", err)
 		}
 	}()
 
@@ -92,8 +87,8 @@ func (f *FSBackend) Serve(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(302)
 }
 
-func (f *FSBackend) StoreTransformedContent(u *url.URL) error {
-	log.Printf("FSBackend: transforming image at url %s", u)
+func (f *Backend) StoreTransformedContent(u *url.URL) error {
+	log.Printf("Backend: transforming image at url %s", u)
 
 	wg := &sync.WaitGroup{}
 	errCh := make(chan error, len(f.presets))
@@ -102,7 +97,7 @@ func (f *FSBackend) StoreTransformedContent(u *url.URL) error {
 		go func(wg *sync.WaitGroup, t *transformer.Transformer, preset string, rule string, errCh chan error) {
 			defer wg.Done()
 
-			log.Printf("FSBackend: applying transformation %s (%s)...", preset, rule)
+			log.Printf("Backend: applying transformation %s (%s)...", preset, rule)
 			res, err := t.Transform(rule, u.String())
 			if err != nil {
 				errCh <- err
@@ -154,7 +149,7 @@ func (f *FSBackend) StoreTransformedContent(u *url.URL) error {
 	return nil
 }
 
-func (f *FSBackend) Delete(u *url.URL) error {
+func (f *Backend) Delete(u *url.URL) error {
 	wg := &sync.WaitGroup{}
 	errCh := make(chan error, len(f.presets))
 	for preset := range f.presets {
@@ -190,7 +185,7 @@ func (f *FSBackend) Delete(u *url.URL) error {
 	return nil
 }
 
-func (f *FSBackend) CleanStorageRoot() error {
+func (f *Backend) CleanStorageRoot() error {
 	if f.imageTTL <= 0 {
 		return nil
 	}

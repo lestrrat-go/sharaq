@@ -1,19 +1,13 @@
-// +build !memcache
-
 package urlcache
 
 import "github.com/lestrrat/sharaq/cache"
 
-type ConfigSource interface {
-	RedisAddr() []string
-	URLCacheExpires() int32
-}
-
-func New(c ConfigSource) *URLCache {
-	servers := c.RedisAddr()
-	expires := c.URLCacheExpires()
+func newRedis(c *Config) (*URLCache, error) {
+	redis := c.Redis
+	servers := redis.Addr
+	expires := c.Expires
 	return &URLCache{
 		cache:   cache.NewRedis(servers),
 		expires: expires,
-	}
+	}, nil
 }

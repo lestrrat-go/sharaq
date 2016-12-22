@@ -17,20 +17,18 @@ import (
 	"strings"
 
 	"github.com/disintegration/imaging"
-	bufferpool "github.com/lestrrat/go-bufferpool"
+	"github.com/lestrrat/sharaq/internal/bbpool"
 )
 
 // Transformer is based on imageproxy by Will Norris. Code was shamelessly
 // stolen from there.
 type Transformer struct {
-	bbpool *bufferpool.BufferPool
 	client *http.Client // client used to fetch remote URLs
 }
 
 type TransformingTransport struct {
 	transport http.RoundTripper
 	client    *http.Client
-	bbpool    *bufferpool.BufferPool
 }
 
 type TransformResult struct {
@@ -39,11 +37,10 @@ type TransformResult struct {
 	Size        int64
 }
 
-func New(bbpool *bufferpool.BufferPool) *Transformer {
+func New() *Transformer {
 	client := &http.Client{}
 	client.Transport = &TransformingTransport{
 		transport: http.DefaultTransport,
-		bbpool:    bbpool,
 		client:    client,
 	}
 	return &Transformer{
@@ -85,13 +82,13 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	}
 
 	opt := ParseOptions(req.URL.Fragment)
-	img, err := transform(b, opt, t.bbpool)
+	img, err := transform(b, opt)
 	if err != nil {
 		img = b
 	}
 
-	buf := t.bbpool.Get()
-	defer t.bbpool.Release(buf)
+	buf := bbpool.Get()
+	defer bbpool.Release(buf)
 
 	// replay response with transformed image and updated content length
 	fmt.Fprintf(buf, "%s %s\n", resp.Proto, resp.Status)
@@ -296,7 +293,7 @@ var resampleFilter = imaging.Lanczos
 // Transform the provided image.  img should contain the raw bytes of an
 // encoded image in one of the supported formats (gif, jpeg, or png).  The
 // bytes of a similarly encoded image is returned.
-func transform(img []byte, opt Options, bbpool *bufferpool.BufferPool) ([]byte, error) {
+func transform(img []byte, opt Options) ([]byte, error) {
 	if opt == emptyOptions {
 		// bail if no transformation was requested
 		return img, nil

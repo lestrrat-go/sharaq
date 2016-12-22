@@ -33,7 +33,3 @@ type Dispatcher struct {
 	logConfig  *LogConfig
 	whitelist  []*regexp.Regexp
 }
-
-type DispatcherConfig interface {
-	DispatcherAddr() string
-}
