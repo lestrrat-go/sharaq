@@ -18,6 +18,7 @@ import (
 
 	"github.com/disintegration/imaging"
 	"github.com/lestrrat/sharaq/internal/bbpool"
+	"github.com/pkg/errors"
 )
 
 // Transformer is based on imageproxy by Will Norris. Code was shamelessly
@@ -31,8 +32,8 @@ type TransformingTransport struct {
 	client    *http.Client
 }
 
-type TransformResult struct {
-	Content     io.ReadCloser
+type Result struct {
+	Content     io.Writer
 	ContentType string
 	Size        int64
 }
@@ -48,17 +49,27 @@ func New() *Transformer {
 	}
 }
 
-func (t *Transformer) Transform(options string, u string) (*TransformResult, error) {
+// Transform takes a string that specifies the transformation,
+// the url of the target, and populates the given result object
+// if transformation was successful
+func (t *Transformer) Transform(options string, u string, result *Result) error {
 	if opts := ParseOptions(options); opts != emptyOptions {
 		u += "#" + opts.String()
 	}
 
 	res, err := t.client.Get(u)
 	if err != nil {
-		return nil, fmt.Errorf("error fetching remote image: %v", err)
+		return errors.Wrap(err, `failed to fetch remote image`)
 	}
+	defer res.Body.Close()
 
-	return &TransformResult{res.Body, res.Header.Get("Content-Type"), res.ContentLength}, nil
+	if _, err := io.Copy(result.Content, res.Body); err != nil {
+		return errors.Wrap(err, `failed to read transformed content`)
+	}
+	result.ContentType = res.Header.Get("Content-Type")
+	result.Size = res.ContentLength
+
+	return nil
 }
 
 func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, error) {

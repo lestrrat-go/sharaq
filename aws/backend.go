@@ -105,8 +105,13 @@ func (s *S3Backend) StoreTransformedContent(ctx context.Context, u *url.URL) err
 		go func(wg *sync.WaitGroup, t *transformer.Transformer, preset string, rule string, errCh chan error) {
 			defer wg.Done()
 
-			res, err := t.Transform(rule, u.String())
-			if err != nil {
+			buf := bbpool.Get()
+			defer bbpool.Release(buf)
+
+			var res transformer.Result
+			res.Content = buf
+
+			if err := t.Transform(rule, u.String(), &res); err != nil {
 				errCh <- err
 				return
 			}
@@ -114,8 +119,7 @@ func (s *S3Backend) StoreTransformedContent(ctx context.Context, u *url.URL) err
 			// good, done. save it to S3
 			path := "/" + preset + u.Path
 			log.Printf("Sending PUT to S3 %s...", path)
-			err = s.bucket.PutReader(path, res.Content, res.Size, res.ContentType, s3.PublicRead, s3.Options{})
-			defer res.Content.Close()
+			err := s.bucket.PutReader(path, buf, res.Size, res.ContentType, s3.PublicRead, s3.Options{})
 			if err != nil {
 				errCh <- err
 				return

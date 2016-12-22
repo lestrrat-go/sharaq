@@ -97,9 +97,14 @@ func (f *Backend) StoreTransformedContent(u *url.URL) error {
 		go func(wg *sync.WaitGroup, t *transformer.Transformer, preset string, rule string, errCh chan error) {
 			defer wg.Done()
 
+			buf := bbpool.Get()
+			defer bbpool.Release(buf)
+
+			var res transformer.Result
+			res.Content = buf
+
 			log.Printf("Backend: applying transformation %s (%s)...", preset, rule)
-			res, err := t.Transform(rule, u.String())
-			if err != nil {
+			if err := t.Transform(rule, u.String(), &res); err != nil {
 				errCh <- err
 				return
 			}
@@ -122,8 +127,7 @@ func (f *Backend) StoreTransformedContent(u *url.URL) error {
 			}
 
 			defer fh.Close()
-			defer res.Content.Close()
-			if _, err := io.Copy(fh, res.Content); err != nil {
+			if _, err := io.Copy(fh, buf); err != nil {
 				errCh <- err
 				return
 			}

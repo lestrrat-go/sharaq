@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/option"
 
+	"github.com/lestrrat/sharaq/internal/bbpool"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"
@@ -128,7 +129,13 @@ func (s *StorageBackend) StoreTransformedContent(ctx context.Context, u *url.URL
 		preset := preset
 		rule := rule
 		grp.Go(func() error {
-			res, err := t.Transform(rule, u.String())
+			buf := bbpool.Get()
+			defer bbpool.Release(buf)
+
+			var res transformer.Result
+			res.Content = buf
+
+			err := t.Transform(rule, u.String(), &res)
 			if err != nil {
 				return errors.Wrap(err, `failed to transform image`)
 			}
@@ -144,7 +151,7 @@ func (s *StorageBackend) StoreTransformedContent(ctx context.Context, u *url.URL
 				{storage.AllUsers, storage.RoleReader},
 			}
 
-			if _, err := io.Copy(wc, res.Content); err != nil {
+			if _, err := io.Copy(wc, buf); err != nil {
 				return errors.Wrapf(err, `failed to write data to %s`, p)
 			}
 
