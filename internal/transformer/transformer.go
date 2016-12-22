@@ -109,7 +109,10 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	fmt.Fprintf(buf, "%s %s\n", resp.Proto, resp.Status)
 	resp.Header.WriteSubset(buf, map[string]bool{"Content-Length": true})
 	fmt.Fprintf(buf, "Content-Length: %d\n\n", len(img))
-	buf.Write(img)
+
+	if _, err := buf.Write(img); err != nil {
+		return nil, errors.Wrap(err, `failed to write transformed image`)
+	}
 
 	return http.ReadResponse(bufio.NewReader(buf), req)
 }
