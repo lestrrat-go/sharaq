@@ -67,7 +67,7 @@ func (t *Transformer) Transform(options string, u string, result *Result) error 
 		return errors.Errorf(`failed to fetch remote image: %d`, res.StatusCode)
 	}
 
-	if _, err := io.Copy(result.Content, res.Body); err != nil {
+	if _, err := io.CopyN(result.Content, res.Body, res.ContentLength); err != nil {
 		return errors.Wrap(err, `failed to read transformed content`)
 	}
 	result.ContentType = res.Header.Get("Content-Type")
