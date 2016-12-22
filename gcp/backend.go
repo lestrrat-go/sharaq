@@ -73,7 +73,7 @@ func (s *StorageBackend) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// create the proper url
-	specificURL := u.Scheme + "://storage.googleapis.com/" + s.bucketName + "/" + preset + u.Path
+	specificURL := u.Scheme + "://storage.googleapis.com/" + makeStoragePath(preset, u)
 
 	log.Printf("Making HEAD request to %s...", specificURL)
 	res, err := http.Head(specificURL)
