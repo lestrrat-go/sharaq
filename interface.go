@@ -1,6 +1,7 @@
 package sharaq
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -18,8 +19,8 @@ type Server struct {
 
 type Backend interface {
 	Serve(http.ResponseWriter, *http.Request)
-	StoreTransformedContent(*url.URL) error
-	Delete(*url.URL) error
+	StoreTransformedContent(context.Context, *url.URL) error
+	Delete(context.Context, *url.URL) error
 }
 
 // Dispatcher is responsible for marshaling the incoming request

@@ -127,7 +127,7 @@ func (g *Guardian) HandleStore(w http.ResponseWriter, r *http.Request) {
 	defer g.UnmarkProcessing(u)
 
 	// start := time.Now()
-	if err := g.backend.StoreTransformedContent(u); err != nil {
+	if err := g.backend.StoreTransformedContent(r.Context(), u); err != nil {
 		log.Printf("Error detected while processing: %s", err)
 		http.Error(w, err.Error(), 500)
 		return
@@ -162,7 +162,7 @@ func (g *Guardian) HandleDelete(w http.ResponseWriter, r *http.Request) {
 
 	// start := time.Now()
 
-	if err := g.backend.Delete(u); err != nil {
+	if err := g.backend.Delete(r.Context(), u); err != nil {
 		log.Printf("Error detected while processing: %s", err)
 		http.Error(w, err.Error(), 500)
 		return

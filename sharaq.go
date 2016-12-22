@@ -94,6 +94,17 @@ func (s *Server) newBackend() error {
 			return errors.Wrap(err, `failed to create aws backend`)
 		}
 		s.backend = b
+	case "gcp":
+		b, err := gcp.NewBackend(
+			&s.config.Backend.Google,
+			s.cache,
+			s.transformer,
+			s.config.Presets,
+		)
+		if err != nil {
+			return errors.Wrap(err, `failed to create gcp backend`)
+		}
+		s.backend = b
 	default:
 		return errors.Errorf(`invalid storage backend %s`, s.config.Backend.Type)
 	}

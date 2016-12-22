@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -82,7 +83,7 @@ func (s *S3Backend) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go func() {
-		if err := s.StoreTransformedContent(u); err != nil {
+		if err := s.StoreTransformedContent(r.Context(), u); err != nil {
 			log.Printf("S3Backend: transformation failed: %s", err)
 		}
 	}()
@@ -92,7 +93,7 @@ FALLBACK:
 	w.WriteHeader(302)
 }
 
-func (s *S3Backend) StoreTransformedContent(u *url.URL) error {
+func (s *S3Backend) StoreTransformedContent(ctx context.Context, u *url.URL) error {
 	log.Printf("S3Backend: transforming image at url %s", u)
 
 	// Transformation is completely done by the transformer, so just
@@ -138,7 +139,7 @@ func (s *S3Backend) StoreTransformedContent(u *url.URL) error {
 	return nil
 }
 
-func (s *S3Backend) Delete(u *url.URL) error {
+func (s *S3Backend) Delete(ctx context.Context, u *url.URL) error {
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(s.presets))
 	for preset := range s.presets {
