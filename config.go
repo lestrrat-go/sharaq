@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"time"
+
+	"github.com/lestrrat/sharaq/internal/urlcache"
 )
 
 func (c *Config) ParseFile(f string) error {
@@ -35,12 +37,24 @@ func (c *Config) Parse(rdr io.Reader) error {
 	if c.Guardian.Listen == "" {
 		c.Guardian.Listen = "0.0.0.0:9191"
 	}
-	if len(c.URLCache.Memcached.Addr) < 1 {
-		c.URLCache.Memcached.Addr = []string{"127.0.0.1:11211"}
+
+	if c.URLCache == nil {
+		c.URLCache = &urlcache.Config{}
 	}
 
-	if len(c.URLCache.Redis.Addr) < 1 {
-		c.URLCache.Redis.Addr = []string{"127.0.0.1:6379"}
+	if c.URLCache.BackendType == "" {
+		c.URLCache.BackendType = "Redis"
+	}
+
+	switch c.URLCache.BackendType {
+	case "Redis":
+		if len(c.URLCache.Redis.Addr) < 1 {
+			c.URLCache.Redis.Addr = []string{"127.0.0.1:6379"}
+		}
+	case "Memcached":
+		if len(c.URLCache.Memcached.Addr) < 1 {
+			c.URLCache.Memcached.Addr = []string{"127.0.0.1:11211"}
+		}
 	}
 
 	// Normalize shorthand form to full form
@@ -62,11 +76,11 @@ func (c *Config) Parse(rdr io.Reader) error {
 			c.MaxAge = 30 * 24 * time.Hour
 		}
 	}
-/*
-	if c.ErrorLog != nil {
-		applyLogDefaults(c.ErrorLog)
-	}
-*/
+	/*
+		if c.ErrorLog != nil {
+			applyLogDefaults(c.ErrorLog)
+		}
+	*/
 	if c.Dispatcher.AccessLog != nil {
 		applyLogDefaults(c.Dispatcher.AccessLog)
 	}
