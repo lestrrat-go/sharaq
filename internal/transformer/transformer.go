@@ -114,7 +114,14 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 		return nil, errors.Wrap(err, `failed to write transformed image`)
 	}
 
-	return http.ReadResponse(bufio.NewReader(buf), req)
+	// This buffer may NOT be allocated from the bufferpool
+	// because it is then used by bufio.Reader, which doesn't
+	// immediately finish reading.
+	// Without this, we run the risk of releasing the buffer
+	// before bufio gets the chance to read it all
+	outbuf := bytes.NewBuffer(buf.Bytes())
+
+	return http.ReadResponse(bufio.NewReader(outbuf), req)
 }
 
 // URLError reports a malformed URL error.
