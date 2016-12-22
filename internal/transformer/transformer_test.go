@@ -8,12 +8,14 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"log"
 	"net/http"
 	"reflect"
 	"testing"
 
 	"github.com/disintegration/imaging"
 	"github.com/lestrrat/sharaq/internal/bbpool"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestOptions_String(t *testing.T) {
@@ -185,53 +187,100 @@ func newImage(w, h int, pixels ...color.NRGBA) image.Image {
 }
 
 func TestTransform(t *testing.T) {
-	src := newImage(2, 2, red, green, blue, yellow)
-
-	buf := bbpool.Get()
-	defer bbpool.Release(buf)
-
-	png.Encode(buf, src)
+	srcimg := newImage(2, 2, red, green, blue, yellow)
 
 	tests := []struct {
 		name        string
-		encode      func(io.Writer, image.Image)
+		encode      func(io.Writer, image.Image) error
 		exactOutput bool // whether input and output should match exactly
 	}{
-		{"gif", func(w io.Writer, m image.Image) { gif.Encode(w, m, nil) }, true},
-		{"jpeg", func(w io.Writer, m image.Image) { jpeg.Encode(w, m, nil) }, false},
-		{"png", func(w io.Writer, m image.Image) { png.Encode(w, m) }, true},
+		{
+			name: "gif",
+			encode: func(w io.Writer, m image.Image) error {
+				return gif.Encode(w, m, nil)
+			},
+			exactOutput: true,
+		},
+		{
+			name: "jpeg",
+			encode: func(w io.Writer, m image.Image) error {
+				return jpeg.Encode(w, m, nil)
+			},
+			exactOutput: false,
+		},
+		{
+			name: "png",
+			encode: func(w io.Writer, m image.Image) error {
+				return png.Encode(w, m)
+			},
+			exactOutput: true,
+		},
 	}
 
 	for _, tt := range tests {
-		buf := bbpool.Get()
-		defer bbpool.Release(buf)
+		t.Run("emptyOption, type = "+tt.name, func(t *testing.T) {
+			src := bbpool.Get()
+			defer bbpool.Release(src)
 
-		tt.encode(buf, src)
-		in := buf.Bytes()
+			dst := bbpool.Get()
+			defer bbpool.Release(dst)
 
-		out, err := transform(in, emptyOptions)
-		if err != nil {
-			t.Errorf("Transform with encoder %s returned unexpected error: %v", err)
-		}
-		if !reflect.DeepEqual(in, out) {
-			t.Errorf("Transform with with encoder %s with empty options returned modified result")
-		}
+			if !assert.NoError(t, tt.encode(src, srcimg), "encode works") {
+				return
+			}
 
-		out, err = transform(in, Options{Width: -1, Height: -1})
-		if err != nil {
-			t.Errorf("Transform with encoder %s returned unexpected error: %v", tt.name, err)
-		}
-		if len(out) == 0 {
-			t.Errorf("Transform with encoder %s returned empty bytes", tt.name)
-		}
-		if tt.exactOutput && !reflect.DeepEqual(in, out) {
-			t.Errorf("Transform with encoder %s with noop Options returned modified result", tt.name)
-		}
+			srcbytes := src.Bytes()
+
+			log.Printf("transform")
+			if !assert.NoError(t, transform(dst, src, emptyOptions), "Transform with encoder should succeed") {
+				return
+			}
+
+			log.Printf("check equal")
+			if !assert.Equal(t, srcbytes, dst.Bytes(), "Transform with encoder %s with empty options returned modified result", tt.name) {
+				log.Printf("failed")
+				return
+			}
+		})
+
+		t.Run("Width: -1, Height: -1", func(t *testing.T) {
+			src := bbpool.Get()
+			defer bbpool.Release(src)
+
+			dst := bbpool.Get()
+			defer bbpool.Release(dst)
+			if !assert.NoError(t, tt.encode(src, srcimg), "encode should succeed") {
+				return
+			}
+
+			srcbytes := src.Bytes()
+
+			if !assert.NoError(t, transform(dst, src, Options{Width: -1, Height: -1}), "Transform with encoder %s returned unexpected error", tt.name) {
+				return
+			}
+
+			if !assert.NotEqual(t, 0, dst.Len(), "Transform with encoder %s returned empty bytes", tt.name) {
+				return
+			}
+
+			if tt.exactOutput {
+				if !assert.Equal(t, srcbytes, dst.Bytes(), "Transform with encoder %s with noop Options returned modified result", tt.name) {
+					return
+				}
+			}
+		})
 	}
 
-	if _, err := transform([]byte{}, Options{Width: 1}); err == nil {
-		t.Errorf("Transform with invalid image input did not return expected err")
-	}
+	t.Run("invalid image", func(t *testing.T) {
+		src := bbpool.Get()
+		defer bbpool.Release(src)
+
+		dst := bbpool.Get()
+		defer bbpool.Release(dst)
+		if !assert.Error(t, transform(dst, src, Options{Width: 1}), "Transform with invalid image input did not return expected err") {
+			return
+		}
+	})
 }
 
 func TestTransformImage(t *testing.T) {

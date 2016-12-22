@@ -157,13 +157,15 @@ type Options struct {
 var emptyOptions = Options{}
 
 func (o Options) String() string {
-	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "%vx%v", o.Width, o.Height)
+	buf := bbpool.Get()
+	defer bbpool.Release(buf)
+
+	fmt.Fprintf(buf, "%vx%v", o.Width, o.Height)
 	if o.Fit {
 		buf.WriteString(",fit")
 	}
 	if o.Rotate != 0 {
-		fmt.Fprintf(&buf, ",r%d", o.Rotate)
+		fmt.Fprintf(buf, ",r%d", o.Rotate)
 	}
 	if o.FlipVertical {
 		buf.WriteString(",fv")
@@ -226,7 +228,7 @@ func (o Options) String() string {
 // 	100,r90   - 100 pixels square, rotated 90 degrees
 // 	100,fv,fh - 100 pixels square, flipped horizontal and vertical
 func ParseOptions(str string) Options {
-	options := Options{}
+	var options Options
 
 	for _, opt := range strings.Split(str, ",") {
 		switch {
@@ -321,8 +323,13 @@ var resampleFilter = imaging.Lanczos
 // encoded image in one of the supported formats (gif, jpeg, or png).  The
 // bytes of a similarly encoded image is returned.
 func transform(dst io.Writer, img io.Reader, opt Options) error {
-	if opt == emptyOptions {
+	if opt.String() == emptyOptions.String() { // XXX WTF. This is bad. fix it
 		// bail if no transformation was requested
+		n, err := io.Copy(dst, img)
+		if err != nil {
+			return errors.Wrap(err, `failed to copy image`)
+		}
+		log.Printf("empty options, copied %d bytes", n)
 		return nil
 	}
 
