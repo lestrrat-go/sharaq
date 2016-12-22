@@ -1,7 +1,6 @@
 package sharaq
 
 import (
-	"hash/crc64"
 	"io"
 	"log"
 	"net"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/lestrrat/go-apache-logformat"
 	"github.com/lestrrat/go-file-rotatelogs"
+	"github.com/lestrrat/sharaq/internal/crc64"
 )
 
 type Guardian struct {
@@ -26,8 +26,8 @@ func NewGuardian(s *Server) (*Guardian, error) {
 	c := s.config
 	g := &Guardian{
 		backend:         s.backend,
-		listenAddr:      c.GuardianAddr(),
-		logConfig:       c.GuardianLog(),
+		listenAddr:      c.Guardian.Listen,
+		logConfig:       c.Guardian.AccessLog,
 		processingMutex: &sync.Mutex{},
 		processing:      make(map[uint64]bool),
 	}
@@ -85,9 +85,7 @@ func (g *Guardian) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (g *Guardian) MarkProcessing(u *url.URL) bool {
-	h := crc64.New(crc64Table)
-	io.WriteString(h, u.String())
-	k := h.Sum64()
+	k := crc64.Sum(u.String())
 
 	g.processingMutex.Lock()
 	defer g.processingMutex.Unlock()
@@ -96,9 +94,7 @@ func (g *Guardian) MarkProcessing(u *url.URL) bool {
 }
 
 func (g *Guardian) UnmarkProcessing(u *url.URL) {
-	h := crc64.New(crc64Table)
-	io.WriteString(h, u.String())
-	k := h.Sum64()
+	k := crc64.Sum(u.String())
 
 	g.processingMutex.Lock()
 	defer g.processingMutex.Unlock()
@@ -131,7 +127,7 @@ func (g *Guardian) HandleStore(w http.ResponseWriter, r *http.Request) {
 	defer g.UnmarkProcessing(u)
 
 	// start := time.Now()
-	if err := g.backend.StoreTransformedContent(u); err != nil {
+	if err := g.backend.StoreTransformedContent(r.Context(), u); err != nil {
 		log.Printf("Error detected while processing: %s", err)
 		http.Error(w, err.Error(), 500)
 		return
@@ -166,7 +162,7 @@ func (g *Guardian) HandleDelete(w http.ResponseWriter, r *http.Request) {
 
 	// start := time.Now()
 
-	if err := g.backend.Delete(u); err != nil {
+	if err := g.backend.Delete(r.Context(), u); err != nil {
 		log.Printf("Error detected while processing: %s", err)
 		http.Error(w, err.Error(), 500)
 		return

@@ -5,8 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"hash/crc64"
-	"io"
 	"log"
 	"net"
 	"os"
@@ -15,15 +13,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lestrrat/go-file-rotatelogs"
 	"github.com/lestrrat/go-server-starter/listener"
+	"github.com/lestrrat/sharaq/aws"
+	"github.com/lestrrat/sharaq/fs"
+	"github.com/lestrrat/sharaq/gcp"
+	"github.com/lestrrat/sharaq/internal/transformer"
+	"github.com/lestrrat/sharaq/internal/urlcache"
+	"github.com/pkg/errors"
 )
-
-var crc64Table *crc64.Table
-
-func init() {
-	crc64Table = crc64.MakeTable(crc64.ISO)
-}
 
 type LogConfig struct {
 	LogFile      string
@@ -33,124 +30,39 @@ type LogConfig struct {
 	Offset       time.Duration
 }
 
+type DispatcherConfig struct {
+	Listen    string     // listen on this address. default is 0.0.0.0:9090
+	AccessLog *LogConfig // dispatcher log. if nil, logs to stderr
+}
+
+type GuardianConfig struct {
+	Listen    string     // listen on this address. default is 0.0.0.0:9191
+	AccessLog *LogConfig // dispatcher log. if nil, logs to stderr
+}
+
+type BackendConfig struct {
+	Amazon     aws.Config // AWS specific config
+	Type       string     // "aws" or "gcp" ("fs" for local debugging)
+	FileSystem fs.Config  // File system specific config
+	Google     gcp.Config // Google specific config
+}
+
 type Config struct {
-	filename           string
-	OptAccessKey       string            `json:"AccessKey"`
-	OptBackendType     BackendType       `json:"BackendType"`
-	OptBucketName      string            `json:"BucketName"`
-	OptDebug           bool              `json:"Debug"`
-	OptDispatcherAddr  string            `json:"DispatcherAddr"` // listen on this address. default is 0.0.0.0:9090
-	OptDispatcherLog   *LogConfig        `json:"DispatcherLog"`  // dispatcher log. if nil, logs to stderr
-	OptErrorLog        *LogConfig        `json:"ErrorLog"`       // error log location. if nil, logs to stderr
-	OptGuardianAddr    string            `json:"GuardianAddr"`   // listen on this address. default is 0.0.0.0:9191
-	OptGuardianLog     *LogConfig        `json:"GuardianLog"`
-	OptImageTTL        time.Duration     `json:"ImageTTL"`
-	OptMemcachedAddr   []string          `json:"MemcachedAddr"`
-	OptRedisAddr       []string          `json:"RedisAddr"`
-	OptPresets         map[string]string `json:"Presets"`
-	OptSecretKey       string            `json:"SecretKey"`
-	OptStorageRoot     string            `json:"StorageRoot"`
-	OptURLCacheExpires int32             `json:"URLCacheExpires"`
-	OptWhitelist       []string          `json:"Whitelist"`
-}
-
-func (c *Config) ParseFile(f string) error {
-	fh, err := os.Open(f)
-	if err != nil {
-		return err
-	}
-	defer fh.Close()
-
-	c.filename = f
-	return c.Parse(fh)
-}
-
-func (c *Config) Parse(rdr io.Reader) error {
-	dec := json.NewDecoder(rdr)
-	if err := dec.Decode(c); err != nil {
-		return err
-	}
-
-	if len(c.OptPresets) == 0 {
-		return fmt.Errorf("error: Presets is empty")
-	}
-
-	if c.OptDispatcherAddr == "" {
-		c.OptDispatcherAddr = "0.0.0.0:9090"
-	}
-	if c.OptGuardianAddr == "" {
-		c.OptGuardianAddr = "0.0.0.0:9191"
-	}
-	if len(c.OptMemcachedAddr) < 1 {
-		c.OptMemcachedAddr = []string{"127.0.0.1:11211"}
-	}
-
-	if len(c.OptRedisAddr) < 1 {
-		c.OptRedisAddr = []string{"127.0.0.1:6379"}
-	}
-
-	// Normalize shorthand form to full form
-	if c.OptDispatcherAddr[0] == ':' {
-		c.OptDispatcherAddr = "0.0.0.0" + c.OptDispatcherAddr
-	}
-
-	if c.OptGuardianAddr[0] == ':' {
-		c.OptGuardianAddr = "0.0.0.0" + c.OptGuardianAddr
-	}
-
-	applyLogDefaults := func(c *LogConfig) {
-		if c.RotationTime <= 0 {
-			// 1 day
-			c.RotationTime = 24 * time.Hour
-		}
-		if c.MaxAge <= 0 {
-			// 30 days
-			c.MaxAge = 30 * 24 * time.Hour
-		}
-	}
-	if c.OptErrorLog != nil {
-		applyLogDefaults(c.OptErrorLog)
-	}
-	if c.OptDispatcherLog != nil {
-		applyLogDefaults(c.OptDispatcherLog)
-	}
-	if c.OptGuardianLog != nil {
-		applyLogDefaults(c.OptGuardianLog)
-	}
-
-	return nil
-}
-
-func (c Config) AccessKey() string          { return c.OptAccessKey }
-func (c Config) BackendType() BackendType   { return c.OptBackendType }
-func (c Config) BucketName() string         { return c.OptBucketName }
-func (c Config) Debug() bool                { return c.OptDebug }
-func (c Config) DispatcherAddr() string     { return c.OptDispatcherAddr }
-func (c Config) DispatcherLog() *LogConfig  { return c.OptDispatcherLog }
-func (c Config) ErrorLog() *LogConfig       { return c.OptErrorLog }
-func (c Config) GuardianAddr() string       { return c.OptGuardianAddr }
-func (c Config) GuardianLog() *LogConfig    { return c.OptGuardianLog }
-func (c Config) ImageTTL() time.Duration    { return c.OptImageTTL }
-func (c Config) MemcachedAddr() []string    { return c.OptMemcachedAddr }
-func (c Config) RedisAddr() []string        { return c.OptRedisAddr }
-func (c Config) Presets() map[string]string { return c.OptPresets }
-func (c Config) SecretKey() string          { return c.OptSecretKey }
-func (c Config) StorageRoot() string        { return c.OptStorageRoot }
-func (c Config) URLCacheExpires() int32     { return c.OptURLCacheExpires }
-func (c Config) Whitelist() []string        { return c.OptWhitelist }
-
-type Server struct {
-	backend     Backend
-	config      *Config
-	cache       *URLCache
-	transformer *Transformer
+	filename   string
+	Backend    BackendConfig
+	Debug      bool
+	Dispatcher DispatcherConfig
+	Guardian   GuardianConfig
+	Presets    map[string]string
+	URLCache   *urlcache.Config
+	Whitelist  []string
 }
 
 func NewServer(c *Config) *Server {
 	s := &Server{
 		config: c,
 	}
-	if s.config.Debug() {
+	if s.config.Debug {
 		s.dumpConfig()
 	}
 	return s
@@ -169,22 +81,55 @@ func (s *Server) dumpConfig() {
 	}
 }
 
-func (s *Server) Run() error {
-	if el := s.config.ErrorLog(); el != nil {
-		elh := rotatelogs.New(
-			el.LogFile,
-			rotatelogs.WithLinkName(el.LinkName),
-			rotatelogs.WithMaxAge(el.MaxAge),
-			rotatelogs.WithRotationTime(el.RotationTime),
+func (s *Server) newBackend() error {
+	switch s.config.Backend.Type {
+	case "aws":
+		b, err := aws.NewBackend(
+			&s.config.Backend.Amazon,
+			s.cache,
+			s.transformer,
+			s.config.Presets,
 		)
-		log.SetOutput(elh)
+		if err != nil {
+			return errors.Wrap(err, `failed to create aws backend`)
+		}
+		s.backend = b
+	case "gcp":
+		b, err := gcp.NewBackend(
+			&s.config.Backend.Google,
+			s.cache,
+			s.transformer,
+			s.config.Presets,
+		)
+		if err != nil {
+			return errors.Wrap(err, `failed to create gcp backend`)
+		}
+		s.backend = b
+	default:
+		return errors.Errorf(`invalid storage backend %s`, s.config.Backend.Type)
 	}
+	return nil
+}
+
+func (s *Server) Run() error {
+	/*
+		if el := s.config.ErrorLog(); el != nil {
+			elh := rotatelogs.New(
+				el.LogFile,
+				rotatelogs.WithLinkName(el.LinkName),
+				rotatelogs.WithMaxAge(el.MaxAge),
+				rotatelogs.WithRotationTime(el.RotationTime),
+			)
+			log.SetOutput(elh)
+		}
+	*/
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	defer signal.Stop(sigCh)
 
 	termLoopCh := make(chan struct{}, 1) // we keep restarting as long as there are no messages on this channel
 
+	var err error
 LOOP:
 	for {
 		select {
@@ -194,14 +139,15 @@ LOOP:
 			// no op, but required to not block on the above case
 		}
 
-		log.Printf("Using url cache at %v", s.config.MemcachedAddr())
-		s.cache = NewURLCache(s)
-		s.transformer = NewTransformer(s)
-		b, err := NewBackend(s)
+		s.cache, err = urlcache.New(s.config.URLCache)
 		if err != nil {
-			return err
+			return errors.Wrap(err, `failed to create urlcache`)
 		}
-		s.backend = b
+		s.transformer = transformer.New()
+
+		if err := s.newBackend(); err != nil {
+			return errors.Wrap(err, `failed to create storage backend`)
+		}
 
 		g, err := NewGuardian(s)
 		if err != nil {
@@ -226,7 +172,7 @@ LOOP:
 					log.Printf("Failed to reload config file %s: %s", s.config.filename, err)
 				} else {
 					s.config = newConfig
-					if s.config.Debug() {
+					if s.config.Debug {
 						s.dumpConfig()
 					}
 				}

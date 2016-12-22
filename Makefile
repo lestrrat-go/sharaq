@@ -17,7 +17,7 @@ glide-$(GOOS)-$(GOARCH)/glide:
 
 test:
 ifdef $(CACHE)
-	go test -v -tags $(CACHE) $(shell glide-$(GOOS)-$(GOARCH)/glide novendor)
-else
-	go test -v $(shell glide-$(GOOS)-$(GOARCH)/glide novendor)
+	$(eval TAGS := "$(TAGS) $(CACHE)")
 endif
+
+	go test -v -tags '$(TAGS)' $(shell glide-$(GOOS)-$(GOARCH)/glide novendor)

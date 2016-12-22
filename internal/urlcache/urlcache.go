@@ -1,9 +1,12 @@
-package sharaq
+package urlcache
 
 import (
 	"crypto/md5"
 	"fmt"
 	"io"
+
+	"github.com/lestrrat/sharaq/cache"
+	"github.com/pkg/errors"
 )
 
 type cacheBackend interface {
@@ -15,6 +18,24 @@ type cacheBackend interface {
 type URLCache struct {
 	cache   cacheBackend
 	expires int32
+}
+
+type Config struct {
+	BackendType string
+	Memcached   cache.MemcacheConfig
+	Redis       cache.RedisConfig
+	Expires     int32
+}
+
+func New(c *Config) (*URLCache, error) {
+	switch c.BackendType {
+	case "Redis":
+		return newRedis(c)
+	case "Memcached":
+		return newMemcached(c)
+	default:
+		return nil, errors.Errorf(`urlcache: unknown backend type "%s"`, c.BackendType)
+	}
 }
 
 func MakeCacheKey(v ...string) string {

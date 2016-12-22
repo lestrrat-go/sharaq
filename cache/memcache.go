@@ -11,6 +11,10 @@ type Memcache struct {
 	client *memcache.Client
 }
 
+type MemcacheConfig struct {
+	Addr []string
+}
+
 func NewMemcache(server ...string) *Memcache {
 	return &Memcache{
 		client: memcache.New(server...),

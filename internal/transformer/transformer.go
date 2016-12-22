@@ -1,4 +1,4 @@
-package sharaq
+package transformer
 
 import (
 	"bufio"
@@ -9,7 +9,6 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -17,6 +16,8 @@ import (
 	"strings"
 
 	"github.com/disintegration/imaging"
+	"github.com/lestrrat/sharaq/internal/bbpool"
+	"github.com/pkg/errors"
 )
 
 // Transformer is based on imageproxy by Will Norris. Code was shamelessly
@@ -25,7 +26,18 @@ type Transformer struct {
 	client *http.Client // client used to fetch remote URLs
 }
 
-func NewTransformer(s *Server) *Transformer {
+type TransformingTransport struct {
+	transport http.RoundTripper
+	client    *http.Client
+}
+
+type Result struct {
+	Content     io.Writer
+	ContentType string
+	Size        int64
+}
+
+func New() *Transformer {
 	client := &http.Client{}
 	client.Transport = &TransformingTransport{
 		transport: http.DefaultTransport,
@@ -36,28 +48,31 @@ func NewTransformer(s *Server) *Transformer {
 	}
 }
 
-type TransformResult struct {
-	content     io.ReadCloser
-	contentType string
-	size        int64
-}
-
-func (t *Transformer) Transform(options string, u string) (*TransformResult, error) {
+// Transform takes a string that specifies the transformation,
+// the url of the target, and populates the given result object
+// if transformation was successful
+func (t *Transformer) Transform(options string, u string, result *Result) error {
 	if opts := ParseOptions(options); opts != emptyOptions {
 		u += "#" + opts.String()
 	}
 
 	res, err := t.client.Get(u)
 	if err != nil {
-		return nil, fmt.Errorf("error fetching remote image: %v", err)
+		return errors.Wrap(err, `failed to fetch remote image`)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return errors.Errorf(`failed to fetch remote image: %d`, res.StatusCode)
 	}
 
-	return &TransformResult{res.Body, res.Header.Get("Content-Type"), res.ContentLength}, nil
-}
+	if _, err := io.CopyN(result.Content, res.Body, res.ContentLength); err != nil {
+		return errors.Wrap(err, `failed to read transformed content`)
+	}
+	result.ContentType = res.Header.Get("Content-Type")
+	result.Size = res.ContentLength
 
-type TransformingTransport struct {
-	transport http.RoundTripper
-	client    *http.Client
+	return nil
 }
 
 func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -75,27 +90,40 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	}
 
 	defer resp.Body.Close()
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
+
+	img := bbpool.Get()
+	defer bbpool.Release(img)
 
 	opt := ParseOptions(req.URL.Fragment)
-	img, err := Transform(b, opt)
-	if err != nil {
-		img = b
+	if err := transform(img, resp.Body, opt); err != nil {
+		return nil, err
 	}
 
 	buf := bbpool.Get()
 	defer bbpool.Release(buf)
 
 	// replay response with transformed image and updated content length
-	fmt.Fprintf(buf, "%s %s\n", resp.Proto, resp.Status)
+	fmt.Fprintf(buf, "%s %s\r\n", resp.Proto, resp.Status)
 	resp.Header.WriteSubset(buf, map[string]bool{"Content-Length": true})
-	fmt.Fprintf(buf, "Content-Length: %d\n\n", len(img))
-	buf.Write(img)
+	fmt.Fprintf(buf, "Content-Length: %d\r\n\r\n", img.Len())
 
-	return http.ReadResponse(bufio.NewReader(buf), req)
+	if _, err := img.WriteTo(buf); err != nil {
+		return nil, errors.Wrap(err, `failed to write transformed image`)
+	}
+
+	// This buffer may NOT be allocated from the bufferpool
+	// because it is then used by bufio.Reader, which doesn't
+	// immediately finish reading.
+	//
+	// Without this, we run the risk of releasing the buffer
+	// before bufio gets the chance to read it all
+	//
+	// Furthermore, we copy the bytes here (by creating a string)
+	// to make absolutely sure that we don't accidentally reuse
+	// the buffer somewhere
+	outbuf := bufio.NewReader(bytes.NewBufferString(buf.String()))
+
+	return http.ReadResponse(outbuf, req)
 }
 
 // URLError reports a malformed URL error.
@@ -200,7 +228,7 @@ func (o Options) String() string {
 // 	100,r90   - 100 pixels square, rotated 90 degrees
 // 	100,fv,fh - 100 pixels square, flipped horizontal and vertical
 func ParseOptions(str string) Options {
-	options := Options{}
+	var options Options
 
 	for _, opt := range strings.Split(str, ",") {
 		switch {
@@ -294,35 +322,37 @@ var resampleFilter = imaging.Lanczos
 // Transform the provided image.  img should contain the raw bytes of an
 // encoded image in one of the supported formats (gif, jpeg, or png).  The
 // bytes of a similarly encoded image is returned.
-func Transform(img []byte, opt Options) ([]byte, error) {
-	if opt == emptyOptions {
+func transform(dst io.Writer, img io.Reader, opt Options) error {
+	if opt.String() == emptyOptions.String() { // XXX WTF. This is bad. fix it
 		// bail if no transformation was requested
-		return img, nil
+		n, err := io.Copy(dst, img)
+		if err != nil {
+			return errors.Wrap(err, `failed to copy image`)
+		}
+		log.Printf("empty options, copied %d bytes", n)
+		return nil
 	}
 
 	log.Printf("Transforming image with rule '%#v'", opt)
 	// decode image
-	m, format, err := image.Decode(bytes.NewReader(img))
+	m, format, err := image.Decode(img)
 	if err != nil {
-		return nil, err
+		return errors.Wrap(err, `failed to decode image`)
 	}
 
 	m = transformImage(m, opt)
 
 	// encode image
-	buf := bbpool.Get()
-	defer bbpool.Release(buf)
-
 	switch format {
 	case "gif":
-		gif.Encode(buf, m, nil)
+		gif.Encode(dst, m, nil)
 	case "jpeg":
-		jpeg.Encode(buf, m, &jpeg.Options{Quality: jpegQuality})
+		jpeg.Encode(dst, m, &jpeg.Options{Quality: jpegQuality})
 	case "png":
-		png.Encode(buf, m)
+		png.Encode(dst, m)
 	}
 
-	return buf.Bytes(), nil
+	return nil
 }
 
 // transformImage modifies the image m based on the transformations specified
