@@ -72,23 +72,19 @@ func (s *StorageBackend) Serve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// create the proper url
-	specificURL := u.Scheme + "://storage.googleapis.com/" + makeStoragePath(preset, u)
-
-	log.Printf("Making HEAD request to %s...", specificURL)
-	res, err := http.Head(specificURL)
+	cl, err := s.getClient(r.Context())
 	if err != nil {
-		log.Printf("Failed to make HEAD request to %s: %s", specificURL, err)
-		goto FALLBACK
-	}
-
-	log.Printf("HEAD request for %s returns %d", specificURL, res.StatusCode)
-	if res.StatusCode == 200 {
-		go s.cache.Set(cacheKey, specificURL)
-		log.Printf("HEAD request to %s was success. Redirecting to proper location", specificURL)
-		w.Header().Add("Location", specificURL)
-		w.WriteHeader(301)
-		return
+		log.Printf(`failed to create client: %s`, err)
+	} else {
+		_, err := cl.Bucket(s.bucketName).Object(makeStoragePath(preset, u)).Attrs(r.Context())
+		if err == nil {
+			specificURL := u.Scheme + "://storage.googleapis.com/" + makeStoragePath(preset, u)
+			log.Printf("Object %s exists. Redirecting to proper location", specificURL)
+			go s.cache.Set(cacheKey, specificURL)
+			w.Header().Add("Location", specificURL)
+			w.WriteHeader(301)
+			return
+		}
 	}
 
 	go func() {
@@ -102,7 +98,6 @@ func (s *StorageBackend) Serve(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-FALLBACK:
 	log.Printf("Fallback to serving original content at %s", u)
 	w.Header().Add("Location", u.String())
 	w.WriteHeader(302)
