@@ -65,7 +65,7 @@ func (s *StorageBackend) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cacheKey := urlcache.MakeCacheKey("gcp", preset, u.String())
-	if cachedURL := s.cache.Lookup(cacheKey); cachedURL != "" {
+	if cachedURL := s.cache.Lookup(r.Context(), cacheKey); cachedURL != "" {
 		log.Printf("Cached entry found for %s:%s -> %s", preset, u.String(), cachedURL)
 		w.Header().Add("Location", cachedURL)
 		w.WriteHeader(301)
@@ -80,7 +80,7 @@ func (s *StorageBackend) Serve(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			specificURL := u.Scheme + "://storage.googleapis.com/" + makeStoragePath(preset, u)
 			log.Printf("Object %s exists. Redirecting to proper location", specificURL)
-			go s.cache.Set(cacheKey, specificURL)
+			go s.cache.Set(context.Background(), cacheKey, specificURL)
 			w.Header().Add("Location", specificURL)
 			w.WriteHeader(301)
 			return
@@ -175,7 +175,7 @@ func (s *StorageBackend) Delete(ctx context.Context, u *url.URL) error {
 		grp.Go(func() error {
 			// delete the cache regardless, because it's better to lose the
 			// cache than to accidentally have one linger
-			defer s.cache.Delete(urlcache.MakeCacheKey(preset, u.String()))
+			defer s.cache.Delete(ctx, urlcache.MakeCacheKey(preset, u.String()))
 
 			p := makeStoragePath(preset, u)
 			log.Printf(" + DELETE Google Storage entry %s\n", p)

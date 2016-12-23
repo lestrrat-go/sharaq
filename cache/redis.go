@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"sort"
 	"strconv"
 	"time"
@@ -72,19 +73,19 @@ func NewRedis(servers []string, options ...RedisOption) *Redis {
 	return c
 }
 
-func (c *Redis) Get(key string, v interface{}) error {
+func (c *Redis) Get(_ context.Context, key string, v interface{}) error {
 	return c.codec.Get(key, v)
 }
 
-func (c *Redis) Set(key string, value[]byte, expires int32) error {
+func (c *Redis) Set(_ context.Context, key string, value []byte, expires int32) error {
 	it := cache.Item{
-		Key:    key,
-		Object: value,
+		Key:        key,
+		Object:     value,
 		Expiration: time.Duration(expires) * time.Second,
 	}
 	return c.codec.Set(&it)
 }
 
-func (c *Redis) Delete(key string) error {
+func (c *Redis) Delete(_ context.Context, key string) error {
 	return c.codec.Delete(key)
 }

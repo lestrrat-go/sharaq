@@ -56,7 +56,7 @@ func (s *S3Backend) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cacheKey := urlcache.MakeCacheKey("s3", preset, u.String())
-	if cachedURL := s.cache.Lookup(cacheKey); cachedURL != "" {
+	if cachedURL := s.cache.Lookup(r.Context(), cacheKey); cachedURL != "" {
 		log.Printf("Cached entry found for %s:%s -> %s", preset, u.String(), cachedURL)
 		w.Header().Add("Location", cachedURL)
 		w.WriteHeader(301)
@@ -75,7 +75,7 @@ func (s *S3Backend) Serve(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("HEAD request for %s returns %d", specificURL, res.StatusCode)
 	if res.StatusCode == 200 {
-		go s.cache.Set(cacheKey, specificURL)
+		go s.cache.Set(context.Background(), cacheKey, specificURL)
 		log.Printf("HEAD request to %s was success. Redirecting to proper location", specificURL)
 		w.Header().Add("Location", specificURL)
 		w.WriteHeader(301)
@@ -159,7 +159,7 @@ func (s *S3Backend) Delete(ctx context.Context, u *url.URL) error {
 
 			// fallthrough here regardless, because it's better to lose the
 			// cache than to accidentally have one linger
-			s.cache.Delete(urlcache.MakeCacheKey(preset, u.String()))
+			s.cache.Delete(context.Background(), urlcache.MakeCacheKey(preset, u.String()))
 		}(&wg, preset, errCh)
 	}
 

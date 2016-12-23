@@ -1,6 +1,7 @@
 package urlcache
 
 import (
+	"context"
 	"crypto/md5"
 	"fmt"
 	"io"
@@ -10,9 +11,9 @@ import (
 )
 
 type cacheBackend interface {
-	Get(string, interface{}) error
-	Set(string, []byte, int32) error
-	Delete(string) error
+	Get(context.Context, string, interface{}) error
+	Set(context.Context, string, []byte, int32) error
+	Delete(context.Context, string) error
 }
 
 type URLCache struct {
@@ -47,18 +48,18 @@ func MakeCacheKey(v ...string) string {
 	return fmt.Sprintf("sharaq:urlcache:%x", h.Sum(nil))
 }
 
-func (c *URLCache) Lookup(key string) string {
+func (c *URLCache) Lookup(ctx context.Context, key string) string {
 	var s string
-	if err := c.cache.Get(key, &s); err == nil {
+	if err := c.cache.Get(ctx, key, &s); err == nil {
 		return s
 	}
 	return ""
 }
 
-func (c *URLCache) Set(key, value string) error {
-	return c.cache.Set(key, []byte(value), c.expires)
+func (c *URLCache) Set(ctx context.Context, key, value string) error {
+	return c.cache.Set(ctx, key, []byte(value), c.expires)
 }
 
-func (c *URLCache) Delete(key string) error {
-	return c.cache.Delete(key)
+func (c *URLCache) Delete(ctx context.Context, key string) error {
+	return c.cache.Delete(ctx, key)
 }
