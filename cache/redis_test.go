@@ -21,22 +21,25 @@ func redisAvailable() bool {
 }
 
 func TestRedis(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	var v, x []byte
 	v = []byte("Hello")
 
 	c := cache.NewRedis([]string{redisAddr})
 
 	key := "foo"
-	c.Delete(key)
+	c.Delete(ctx, key)
 	if !assert.Error(t, c.Get(key, &x), "Get should fail") {
 		return
 	}
 
-	if !assert.NoError(t, c.Set(key, v, 10), "Set should succeed") {
+	if !assert.NoError(t, c.Set(ctx, key, v, 10), "Set should succeed") {
 		return
 	}
 
-	if !assert.NoError(t, c.Get(key, &x), "Get should succeed") {
+	if !assert.NoError(t, c.Get(ctx, key, &x), "Get should succeed") {
 		return
 	}
 
@@ -44,11 +47,11 @@ func TestRedis(t *testing.T) {
 		return
 	}
 
-	if !assert.NoError(t, c.Delete(key), "Delete should succeed") {
+	if !assert.NoError(t, c.Delete(ctx, key), "Delete should succeed") {
 		return
 	}
 
-	if !assert.Error(t, c.Get(key, &x), "Get should fail") {
+	if !assert.Error(t, c.Get(ctx, key, &x), "Get should fail") {
 		return
 	}
 }
