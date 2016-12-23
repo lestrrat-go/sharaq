@@ -1,6 +1,7 @@
 package cache_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/lestrrat/sharaq/cache"
@@ -31,7 +32,7 @@ func TestRedis(t *testing.T) {
 
 	key := "foo"
 	c.Delete(ctx, key)
-	if !assert.Error(t, c.Get(key, &x), "Get should fail") {
+	if !assert.Error(t, c.Get(ctx, key, &x), "Get should fail") {
 		return
 	}
 
