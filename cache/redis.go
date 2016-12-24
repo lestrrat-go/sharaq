@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/pkg/errors"
+
 	cache "gopkg.in/go-redis/cache.v5"
 	redis "gopkg.in/redis.v5"
 	msgpack "gopkg.in/vmihailenco/msgpack.v2"
@@ -84,6 +86,17 @@ func (c *Redis) Set(_ context.Context, key string, value []byte, expires int32) 
 		Expiration: time.Duration(expires) * time.Second,
 	}
 	return c.codec.Set(&it)
+}
+
+func (c *Redis) SetNX(_ context.Context, key string, value []byte, expires int32) error {
+	ok, err := c.server.SetNX(key, value, time.Second*time.Duration(expires)).Result()
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return errors.New(`redis: setNX failed`)
+	}
+	return nil
 }
 
 func (c *Redis) Delete(_ context.Context, key string) error {

@@ -1,19 +1,25 @@
 package sharaq
 
 import (
+	"context"
 	"io"
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"sync"
+	"time"
 
 	"github.com/lestrrat/go-apache-logformat"
 	"github.com/lestrrat/go-file-rotatelogs"
+	"github.com/lestrrat/sharaq/internal/urlcache"
+	"github.com/lestrrat/sharaq/internal/util"
+	"github.com/pkg/errors"
 )
 
-func NewDispatcher(s *Server, g *Guardian) (*Dispatcher, error) {
+func NewDispatcher(s *Server) (*Dispatcher, error) {
 	c := s.config
 
 	whitelist := make([]*regexp.Regexp, len(s.config.Whitelist))
@@ -29,7 +35,6 @@ func NewDispatcher(s *Server, g *Guardian) (*Dispatcher, error) {
 		backend:    s.backend,
 		listenAddr: c.Dispatcher.Listen,
 		cache:      s.cache,
-		guardian:   g,
 		logConfig:  c.Dispatcher.AccessLog,
 		whitelist:  whitelist,
 	}, nil
@@ -75,18 +80,21 @@ func (d *Dispatcher) Run(doneWg *sync.WaitGroup, exitCond *sync.Cond) {
 func (d *Dispatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		d.HandleFetch(w, r)
-
+		d.handleFetch(w, r)
+	case "PUT":
+		d.handleStore(w, r)
+	case "DELETE":
+		d.handleDelete(w, r)
 	default:
 		http.Error(w, "What, what, what?", 400)
 	}
 }
 
-// HandleFetch replies with the proper URL of the image
-func (d *Dispatcher) HandleFetch(w http.ResponseWriter, r *http.Request) {
-	rawValue := r.FormValue("url")
-	if rawValue == "" {
-		http.Error(w, "Bad url", 500)
+// handleFetch replies with the proper URL of the image
+func (d *Dispatcher) handleFetch(w http.ResponseWriter, r *http.Request) {
+	u, err := util.GetTargetURL(r)
+	if err != nil {
+		http.Error(w, `url parameter missing`, http.StatusBadRequest)
 		return
 	}
 
@@ -95,7 +103,7 @@ func (d *Dispatcher) HandleFetch(w http.ResponseWriter, r *http.Request) {
 		allowed = true
 	} else {
 		for _, pat := range d.whitelist {
-			if pat.MatchString(rawValue) {
+			if pat.MatchString(u.String()) {
 				allowed = true
 				break
 			}
@@ -108,4 +116,75 @@ func (d *Dispatcher) HandleFetch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d.backend.Serve(w, r)
+}
+
+func (d *Dispatcher) markProcessing(ctx context.Context, u *url.URL) error {
+	cacheKey := urlcache.MakeCacheKey("processing", u.String())
+	return errors.Wrap(
+		d.cache.SetNX(ctx, cacheKey, "XXX", urlcache.WithExpires(5*time.Second)),
+		`failed to set cache`,
+	)
+}
+
+func (d *Dispatcher) unmarkProcessing(ctx context.Context, u *url.URL) error {
+	cacheKey := urlcache.MakeCacheKey("processing", u.String())
+	return errors.Wrap(
+		d.cache.Delete(ctx, cacheKey),
+		`failed to delete cache`,
+	)
+}
+
+// handleStore accepts PUT requests to create resized images and
+// store them on S3
+func (d *Dispatcher) handleStore(w http.ResponseWriter, r *http.Request) {
+	u, err := util.GetTargetURL(r)
+	if err != nil {
+		http.Error(w, `url parameter missing`, http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+	// Don't process the same url while somebody else is processing it
+	if err := d.markProcessing(ctx, u); err != nil {
+		log.Printf("URL '%s' is being processed", u.String())
+		http.Error(w, "url is being processed", 500)
+		return
+	}
+	defer d.unmarkProcessing(ctx, u)
+
+	// start := time.Now()
+	if err := d.backend.StoreTransformedContent(ctx, u); err != nil {
+		log.Printf("Error detected while processing: %s", err)
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	// TODO: allow configuring this later
+	// w.Header().Add("X-Sharaq-Elapsed-Time", fmt.Sprintf("%0.2f", time.Since(start).Seconds()))
+}
+
+// handleDelete accepts DELETE requests to delete all known resized images
+func (d *Dispatcher) handleDelete(w http.ResponseWriter, r *http.Request) {
+	u, err := util.GetTargetURL(r)
+	if err != nil {
+		http.Error(w, `url parameter missing`, http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+
+	// Don't process the same url while somebody else is processing it
+	if err := d.markProcessing(ctx, u); err != nil {
+		http.Error(w, "url is being processed", 500)
+		return
+	}
+	defer d.unmarkProcessing(ctx, u)
+
+	if err := d.backend.Delete(ctx, u); err != nil {
+		log.Printf("Error detected while processing: %s", err)
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	// w.Header().Add("X-Sharaq-Elapsed-Time", fmt.Sprintf("%0.2f", time.Since(start).Seconds()))
 }

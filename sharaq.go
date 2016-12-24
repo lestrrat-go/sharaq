@@ -1,3 +1,5 @@
+// +build !appengine
+
 package sharaq
 
 import (
@@ -35,11 +37,6 @@ type DispatcherConfig struct {
 	AccessLog *LogConfig // dispatcher log. if nil, logs to stderr
 }
 
-type GuardianConfig struct {
-	Listen    string     // listen on this address. default is 0.0.0.0:9191
-	AccessLog *LogConfig // dispatcher log. if nil, logs to stderr
-}
-
 type BackendConfig struct {
 	Amazon     aws.Config // AWS specific config
 	Type       string     // "aws" or "gcp" ("fs" for local debugging)
@@ -52,7 +49,6 @@ type Config struct {
 	Backend    BackendConfig
 	Debug      bool
 	Dispatcher DispatcherConfig
-	Guardian   GuardianConfig
 	Presets    map[string]string
 	URLCache   *urlcache.Config
 	Whitelist  []string
@@ -149,12 +145,7 @@ LOOP:
 			return errors.Wrap(err, `failed to create storage backend`)
 		}
 
-		g, err := NewGuardian(s)
-		if err != nil {
-			return err
-		}
-
-		d, err := NewDispatcher(s, g)
+		d, err := NewDispatcher(s)
 		if err != nil {
 			return err
 		}
@@ -185,7 +176,6 @@ LOOP:
 		wg := &sync.WaitGroup{}
 		wg.Add(2)
 
-		go g.Run(wg, exitCond)
 		go d.Run(wg, exitCond)
 
 		wg.Wait()

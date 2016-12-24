@@ -47,6 +47,10 @@ func (m *Memcache) Set(_ context.Context, key string, value []byte, expires int3
 	return m.client.Set(&memcache.Item{Key: key, Value: value, Expiration: expires})
 }
 
+func (m *Memcache) SetNX(_ context.Context, key string, value []byte, expires int32) error {
+	return m.client.Add(&memcache.Item{Key: key, Value: value, Expiration: expires})
+}
+
 func (m *Memcache) Delete(_ context.Context, key string) error {
 	return m.client.Delete(key)
 }

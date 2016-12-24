@@ -29,7 +29,6 @@ type Dispatcher struct {
 	cache      *urlcache.URLCache
 	backend    Backend
 	bucketName string
-	guardian   *Guardian
 	listenAddr string
 	logConfig  *LogConfig
 	whitelist  []*regexp.Regexp
