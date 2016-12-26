@@ -1,6 +1,9 @@
 GOVERSION=$(shell go version)
 GOOS=$(word 1,$(subst /, ,$(word $(words $(GOVERSION)), $(GOVERSION))))
 GOARCH=$(word 2,$(subst /, ,$(word $(words $(GOVERSION)), $(GOVERSION))))
+ifneq ($(GAE),)
+export PATH := $(GAE):$(PATH)
+endif
 
 installdeps: glide-$(GOOS)-$(GOARCH)/glide
 	PATH=glide-$(GOOS)-$(GOARCH):$(PATH) glide install
@@ -28,4 +31,4 @@ $(GAE)/goapp:
 	mv go_appengine $(GAE)
 
 appengine_test: $(GAE)/goapp
-	env PATH=$(GAE):$(PATH) goapp test -v $(shell glide-$(GOOS)-$(GOARCH)/glide novendor)
+	goapp test -v $(shell glide-$(GOOS)-$(GOARCH)/glide novendor)
