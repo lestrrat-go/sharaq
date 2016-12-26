@@ -33,3 +33,6 @@ import:
 - package: gopkg.in/go-redis/cache.v5
 - package: gopkg.in/redis.v5
 - package: gopkg.in/vmihailenco/msgpack.v2
+- package: github.com/stretchr/testify
+  subpackages:
+  - assert

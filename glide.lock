@@ -1,5 +1,5 @@
-hash: d7c9a43784916fafba6fcf4a205e69d463ccfe73bfe06c75f6a8e116c6080d66
-updated: 2016-12-26T14:04:51.771360876+09:00
+hash: f08511740a6ddee1807c8d37934dbdc157c86ff9be05fd1e5d3d039bc7b95265
+updated: 2016-12-26T15:54:40.262123011+09:00
 imports:
 - name: bitbucket.org/tebeka/strftime
   version: 2194253a23c0
@@ -34,11 +34,15 @@ imports:
 - name: github.com/lestrrat/go-file-rotatelogs
   version: ab335c655133cea61d8164853c1ed0e97d6c77cb
 - name: github.com/lestrrat/go-server-starter
-  version: f9749b3a958c4aaa5c455e6a263953ebefb254b6
+  version: f9cb0b066498d26a90fd918fe265adbb0ea02bcf
   subpackages:
   - listener
 - name: github.com/pkg/errors
   version: 248dadf4e9068a0b3e79f02ed0a610d935de5302
+- name: github.com/stretchr/testify
+  version: 2402e8e7a02fc811447d11f881aa9746cdc57983
+  subpackages:
+  - assert
 - name: github.com/vaughan0/go-ini
   version: a98ad7ee00ec53921f08832bc06ecf7fd600e6a1
 - name: go4.org
