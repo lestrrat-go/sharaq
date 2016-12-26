@@ -29,7 +29,7 @@ $(GAE)/goapp:
 	@mkdir -p .download
 	@mkdir -p $(GAE)
 	wget -q https://storage.googleapis.com/appengine-sdks/featured/go_appengine_sdk_$(GOOS)_$(GOARCH)-1.9.48.zip
-	@mv go_appengine_$(GOOS)_$(GOARCH)-1.9.48.zip .download/
+	@mv go_appengine_sdk_$(GOOS)_$(GOARCH)-1.9.48.zip .download/
 	@unzip .download/go_appengine_sdk_$(GOOS)_$(GOARCH)-1.9.48.zip > /dev/null
 	@mv go_appengine/* $(GAE)
 
