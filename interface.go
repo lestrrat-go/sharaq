@@ -39,11 +39,6 @@ type LogConfig struct {
 	Offset       time.Duration
 }
 
-type DispatcherConfig struct {
-	Listen    string     // listen on this address. default is 0.0.0.0:9090
-	AccessLog *LogConfig // dispatcher log. if nil, logs to stderr
-}
-
 type BackendConfig struct {
 	Amazon     aws.Config // AWS specific config
 	Type       string     // "aws" or "gcp" ("fs" for local debugging)
@@ -52,11 +47,12 @@ type BackendConfig struct {
 }
 
 type Config struct {
-	filename   string
-	Backend    BackendConfig
-	Debug      bool
-	Dispatcher DispatcherConfig
-	Presets    map[string]string
-	URLCache   *urlcache.Config
-	Whitelist  []string
+	filename  string
+	AccessLog *LogConfig // dispatcher log. if nil, logs to stderr
+	Backend   BackendConfig
+	Debug     bool
+	Listen    string // listen on this address. default is 0.0.0.0:9090
+	Presets   map[string]string
+	URLCache  *urlcache.Config
+	Whitelist []string
 }

@@ -31,8 +31,8 @@ func (c *Config) Parse(rdr io.Reader) error {
 		return fmt.Errorf("error: Presets is empty")
 	}
 
-	if c.Dispatcher.Listen == "" {
-		c.Dispatcher.Listen = "0.0.0.0:9090"
+	if c.Listen == "" {
+		c.Listen = "0.0.0.0:9090"
 	}
 
 	if c.URLCache == nil {
@@ -55,8 +55,8 @@ func (c *Config) Parse(rdr io.Reader) error {
 	}
 
 	// Normalize shorthand form to full form
-	if l := c.Dispatcher.Listen; l[0] == ':' {
-		c.Dispatcher.Listen = "0.0.0.0" + l
+	if l := c.Listen; l[0] == ':' {
+		c.Listen = "0.0.0.0" + l
 	}
 
 	applyLogDefaults := func(c *LogConfig) {
@@ -74,8 +74,8 @@ func (c *Config) Parse(rdr io.Reader) error {
 			applyLogDefaults(c.ErrorLog)
 		}
 	*/
-	if c.Dispatcher.AccessLog != nil {
-		applyLogDefaults(c.Dispatcher.AccessLog)
+	if c.AccessLog != nil {
+		applyLogDefaults(c.AccessLog)
 	}
 
 	return nil
