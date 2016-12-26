@@ -28,4 +28,4 @@ $(GAE):
 	mv go_appengine $(GAE)
 
 appengine_test: $(GAE)
-	PATH=$(GAE):$(PATH) goapp test -v $(shell glide-$(GOOS)-$(GOARCH)/glide novendor)
+	env PATH=$(GAE):$(PATH) goapp test -v $(shell glide-$(GOOS)-$(GOARCH)/glide novendor)
