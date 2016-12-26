@@ -3,7 +3,6 @@ package sharaq
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/lestrrat/sharaq/aws"
 	"github.com/lestrrat/sharaq/gcp"
+	"github.com/lestrrat/sharaq/internal/context"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"
 	"github.com/pkg/errors"
