@@ -3,8 +3,9 @@
 package cache
 
 import (
-	"context"
+	"time"
 
+	"github.com/lestrrat/sharaq/internal/context"
 	"github.com/pkg/errors"
 	"google.golang.org/appengine/memcache"
 )
@@ -41,7 +42,11 @@ func (m *Memcache) Get(ctx context.Context, key string, value interface{}) error
 }
 
 func (m *Memcache) Set(ctx context.Context, key string, value []byte, expires int32) error {
-	return memcache.Set(ctx, &memcache.Item{Key: key, Value: value, Expiration: expires})
+	return memcache.Set(ctx, &memcache.Item{Key: key, Value: value, Expiration: time.Duration(expires) * time.Second})
+}
+
+func (m *Memcache) SetNX(ctx context.Context, key string, value []byte, expires int32) error {
+	return memcache.Add(ctx, &memcache.Item{Key: key, Value: value, Expiration: time.Duration(expires) * time.Second})
 }
 
 func (m *Memcache) Delete(ctx context.Context, key string) error {

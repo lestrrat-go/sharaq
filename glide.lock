@@ -1,5 +1,5 @@
-hash: 4588e90c55cb5306648b2bf71903356794c4be06dd37eb6eec2a848fd808a63f
-updated: 2016-12-23T18:45:50.135985367+09:00
+hash: d7c9a43784916fafba6fcf4a205e69d463ccfe73bfe06c75f6a8e116c6080d66
+updated: 2016-12-26T14:04:51.771360876+09:00
 imports:
 - name: bitbucket.org/tebeka/strftime
   version: 2194253a23c0
@@ -39,10 +39,6 @@ imports:
   - listener
 - name: github.com/pkg/errors
   version: 248dadf4e9068a0b3e79f02ed0a610d935de5302
-- name: github.com/stretchr/testify
-  version: 2402e8e7a02fc811447d11f881aa9746cdc57983
-  subpackages:
-  - assert
 - name: github.com/vaughan0/go-ini
   version: a98ad7ee00ec53921f08832bc06ecf7fd600e6a1
 - name: go4.org
@@ -93,17 +89,17 @@ imports:
   version: 08a149cfaee099e6ce4be01c0113a78c85ee1dee
   subpackages:
   - memcache
-  - datastore
   - internal
   - internal/memcache
-  - internal/datastore
-  - socket
-  - urlfetch
+  - datastore
   - internal/app_identity
   - internal/modules
   - internal/base
+  - internal/datastore
   - internal/log
   - internal/remote_api
+  - socket
+  - urlfetch
   - internal/socket
   - internal/urlfetch
 - name: google.golang.org/grpc

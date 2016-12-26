@@ -1,7 +1,6 @@
 package gcp
 
 import (
-	"context"
 	"io"
 	"log"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 	"google.golang.org/api/option"
 
 	"github.com/lestrrat/sharaq/internal/bbpool"
+	"github.com/lestrrat/sharaq/internal/context"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"
@@ -65,18 +65,18 @@ func (s *StorageBackend) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cacheKey := urlcache.MakeCacheKey("gcp", preset, u.String())
-	if cachedURL := s.cache.Lookup(r.Context(), cacheKey); cachedURL != "" {
+	if cachedURL := s.cache.Lookup(util.RequestCtx(r), cacheKey); cachedURL != "" {
 		log.Printf("Cached entry found for %s:%s -> %s", preset, u.String(), cachedURL)
 		w.Header().Add("Location", cachedURL)
 		w.WriteHeader(301)
 		return
 	}
 
-	cl, err := s.getClient(r.Context())
+	cl, err := s.getClient(util.RequestCtx(r))
 	if err != nil {
 		log.Printf(`failed to create client: %s`, err)
 	} else {
-		_, err := cl.Bucket(s.bucketName).Object(makeStoragePath(preset, u)).Attrs(r.Context())
+		_, err := cl.Bucket(s.bucketName).Object(makeStoragePath(preset, u)).Attrs(util.RequestCtx(r))
 		if err == nil {
 			specificURL := u.Scheme + "://storage.googleapis.com/" + makeStoragePath(preset, u)
 			log.Printf("Object %s exists. Redirecting to proper location", specificURL)

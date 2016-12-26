@@ -1,11 +1,11 @@
 package cache
 
 import (
-	"context"
 	"sort"
 	"strconv"
 	"time"
 
+	"github.com/lestrrat/sharaq/internal/context"
 	"github.com/pkg/errors"
 
 	cache "gopkg.in/go-redis/cache.v5"

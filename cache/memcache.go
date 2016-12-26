@@ -3,9 +3,8 @@
 package cache
 
 import (
-	"context"
-
 	"github.com/bradfitz/gomemcache/memcache"
+	"github.com/lestrrat/sharaq/internal/context"
 	"github.com/pkg/errors"
 )
 

@@ -1,13 +1,13 @@
 package urlcache
 
 import (
-	"context"
 	"crypto/md5"
 	"fmt"
 	"io"
 	"time"
 
 	"github.com/lestrrat/sharaq/cache"
+	"github.com/lestrrat/sharaq/internal/context"
 	"github.com/pkg/errors"
 )
 

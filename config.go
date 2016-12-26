@@ -34,9 +34,6 @@ func (c *Config) Parse(rdr io.Reader) error {
 	if c.Dispatcher.Listen == "" {
 		c.Dispatcher.Listen = "0.0.0.0:9090"
 	}
-	if c.Guardian.Listen == "" {
-		c.Guardian.Listen = "0.0.0.0:9191"
-	}
 
 	if c.URLCache == nil {
 		c.URLCache = &urlcache.Config{}
@@ -62,10 +59,6 @@ func (c *Config) Parse(rdr io.Reader) error {
 		c.Dispatcher.Listen = "0.0.0.0" + l
 	}
 
-	if l := c.Guardian.Listen; l[0] == ':' {
-		c.Guardian.Listen = "0.0.0.0" + l
-	}
-
 	applyLogDefaults := func(c *LogConfig) {
 		if c.RotationTime <= 0 {
 			// 1 day
@@ -83,9 +76,6 @@ func (c *Config) Parse(rdr io.Reader) error {
 	*/
 	if c.Dispatcher.AccessLog != nil {
 		applyLogDefaults(c.Dispatcher.AccessLog)
-	}
-	if c.Guardian.AccessLog != nil {
-		applyLogDefaults(c.Guardian.AccessLog)
 	}
 
 	return nil

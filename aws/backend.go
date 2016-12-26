@@ -1,7 +1,6 @@
 package aws
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 	"github.com/goamz/goamz/aws"
 	"github.com/goamz/goamz/s3"
 	"github.com/lestrrat/sharaq/internal/bbpool"
+	"github.com/lestrrat/sharaq/internal/context"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"
@@ -56,7 +56,7 @@ func (s *S3Backend) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cacheKey := urlcache.MakeCacheKey("s3", preset, u.String())
-	if cachedURL := s.cache.Lookup(r.Context(), cacheKey); cachedURL != "" {
+	if cachedURL := s.cache.Lookup(util.RequestCtx(r), cacheKey); cachedURL != "" {
 		log.Printf("Cached entry found for %s:%s -> %s", preset, u.String(), cachedURL)
 		w.Header().Add("Location", cachedURL)
 		w.WriteHeader(301)
@@ -83,7 +83,7 @@ func (s *S3Backend) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go func() {
-		if err := s.StoreTransformedContent(r.Context(), u); err != nil {
+		if err := s.StoreTransformedContent(util.RequestCtx(r), u); err != nil {
 			log.Printf("S3Backend: transformation failed: %s", err)
 		}
 	}()

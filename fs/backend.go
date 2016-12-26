@@ -1,7 +1,6 @@
 package fs
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/lestrrat/sharaq/internal/bbpool"
+	"github.com/lestrrat/sharaq/internal/context"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"
@@ -64,7 +64,7 @@ func (f *Backend) Serve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cacheKey := urlcache.MakeCacheKey("fs", preset, u.String())
-	if cachedFile := f.cache.Lookup(r.Context(), cacheKey); cachedFile != "" {
+	if cachedFile := f.cache.Lookup(util.RequestCtx(r), cacheKey); cachedFile != "" {
 		log.Printf("Cached entry found for %s:%s -> %s", preset, u.String(), cachedFile)
 		http.ServeFile(w, r, cachedFile)
 		return
@@ -73,7 +73,7 @@ func (f *Backend) Serve(w http.ResponseWriter, r *http.Request) {
 	path := f.EncodeFilename(preset, u.String())
 	if _, err := os.Stat(path); err == nil {
 		// HIT. Serve this guy after filling the cache
-		f.cache.Set(r.Context(), cacheKey, path)
+		f.cache.Set(util.RequestCtx(r), cacheKey, path)
 		http.ServeFile(w, r, path)
 	}
 
