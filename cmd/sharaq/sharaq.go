@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"os"
@@ -37,7 +38,10 @@ func _main() int {
 		return 1
 	}
 
-	if err := s.Run(); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if err := s.Run(ctx); err != nil {
 		log.Printf("Failed to run server: %s", err)
 		return 1
 	}
