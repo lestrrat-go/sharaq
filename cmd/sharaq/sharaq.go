@@ -31,7 +31,12 @@ func _main() int {
 		return 1
 	}
 
-	s := sharaq.NewServer(config)
+	s, err := sharaq.NewServer(config)
+	if err != nil {
+		log.Printf("Failed to instantiate server: %s", err)
+		return 1
+	}
+
 	if err := s.Run(); err != nil {
 		log.Printf("Failed to run server: %s", err)
 		return 1
