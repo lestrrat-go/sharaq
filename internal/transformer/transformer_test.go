@@ -1,3 +1,5 @@
+// +build !appengine
+
 package transformer
 
 import (
@@ -218,6 +220,7 @@ func TestTransform(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		// Grr, appengine go is too old to use t.Run
 		t.Run("emptyOption, type = "+tt.name, func(t *testing.T) {
 			src := bbpool.Get()
 			defer bbpool.Release(src)

@@ -16,8 +16,16 @@ glide-$(GOOS)-$(GOARCH)/glide:
 	@rm -rf $(GOOS)-$(GOARCH)
 
 test:
-ifdef $(CACHE)
-	$(eval TAGS := "$(TAGS) $(CACHE)")
+ifeq ($(GAE),)
+	go test -v $(shell glide-$(GOOS)-$(GOARCH)/glide novendor)
+else
+	$(MAKE) appengine_test
 endif
 
-	go test -v -tags '$(TAGS)' $(shell glide-$(GOOS)-$(GOARCH)/glide novendor)
+$(GAE):
+	wget -q https://storage.googleapis.com/appengine-sdks/featured/go_appengine_sdk_$(GOOS)_$(GOARCH)-1.9.48.zip
+	unzip go_appengine_sdk_$(GOOS)_$(GOARCH)-1.9.48.zip
+	mv go_appengine $(GAE)
+
+appengine_test: $(GAE)
+	PATH=$(GAE):$(PATH) goapp test -v $(shell glide-$(GOOS)-$(GOARCH)/glide novendor)

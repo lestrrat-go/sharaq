@@ -1,10 +1,10 @@
 package cache_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/lestrrat/sharaq/cache"
+	"github.com/lestrrat/sharaq/internal/context"
 	"github.com/stretchr/testify/assert"
 	redis "gopkg.in/redis.v5"
 )
