@@ -165,14 +165,27 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 func (s *Server) serve(ctx context.Context) {
 	var output io.Writer = os.Stdout
 	if dl := s.logConfig; dl != nil {
-		dlh := rotatelogs.New(
-			dl.LogFile,
-			rotatelogs.WithLinkName(dl.LinkName),
-			rotatelogs.WithMaxAge(dl.MaxAge),
-			rotatelogs.WithRotationTime(dl.RotationTime),
-		)
-		output = dlh
+		var options []rotatelogs.Option
+		if loc := dl.Location; loc != "" {
+			// TODO: Properly report errors
+			l, err := time.LoadLocation(loc)
+			if err == nil {
+				options = append(options, rotatelogs.WithLocation(l))
+			}
+		}
+		if name := dl.LinkName; name != "" {
+			options = append(options, rotatelogs.WithLinkName(name))
+		}
 
+		if age := dl.MaxAge; age > 0 {
+			options = append(options, rotatelogs.WithMaxAge(age))
+		}
+
+		if rt := dl.RotationTime; rt > 0 {
+			options = append(options, rotatelogs.WithRotationTime(rt))
+		}
+
+		output = rotatelogs.New(dl.LogFile, options...)
 		log.Printf("Dispatcher logging to %s", dl.LogFile)
 	}
 	srv := &http.Server{

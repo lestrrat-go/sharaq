@@ -29,14 +29,39 @@ and transform that to below when passing to the actual sharaq app
 
 # CONFIGURATION
 
+## Listen Address
+
+```json
+{
+  "Listen": "0.0.0.0:8080"
+}
+```
+
+## Access Log
+
+See also: https://github.com/lestrrat/go-apache-logformat
+
+```json
+{
+  "AccessLog": {
+    "LogFile      string
+	LinkName     string
+	RotationTime time.Duration
+	MaxAge       time.Duration
+	Offset       time.Duration
+
+
 ## AWS (S3) Backend
 
 ```json
 {
-  "Amazon": {
-    "AccessKey": "...",
-    "SecretKey": "...",
-    "BucketName": "..."
+  "Backend": {
+    "Type": "aws",
+    "Amazon": {
+      "AccessKey": "...",
+      "SecretKey": "...",
+      "BucketName": "..."
+    }
   }
 }
 ```
@@ -83,8 +108,11 @@ For GCP (Google Storage), service keys are looked under several known locations.
 
 ```json
 {
-  "Google": {
-    "BucketName": "..."
+  "Backend": {
+    "Type": "gcp",
+    "Google": {
+      "BucketName": "..."
+    }
   }
 }
 ```
@@ -94,8 +122,11 @@ The FS backend stores all the images in a directory in the sharaq host. You prob
 
 ```json
 {
-  "FileSystem": {
-    "StorageRoot": "/path/to/storage-dir"
+  "Backend": {
+    "Type": "fs",
+    "FileSystem": {
+      "StorageRoot": "/path/to/storage-dir"
+    }
   }
 }
 ```

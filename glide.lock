@@ -1,5 +1,5 @@
 hash: f08511740a6ddee1807c8d37934dbdc157c86ff9be05fd1e5d3d039bc7b95265
-updated: 2016-12-26T15:54:40.262123011+09:00
+updated: 2016-12-26T22:00:35.878557067+09:00
 imports:
 - name: bitbucket.org/tebeka/strftime
   version: 2194253a23c0
@@ -32,7 +32,7 @@ imports:
 - name: github.com/lestrrat/go-bufferpool
   version: a1a4a9cf09b4f3e6d263ba25cf09de3276e1d589
 - name: github.com/lestrrat/go-file-rotatelogs
-  version: ab335c655133cea61d8164853c1ed0e97d6c77cb
+  version: bc38c242fc0ce0028bf4df5ebd8a2a1ae9cedea1
 - name: github.com/lestrrat/go-server-starter
   version: f9cb0b066498d26a90fd918fe265adbb0ea02bcf
   subpackages:

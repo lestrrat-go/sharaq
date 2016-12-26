@@ -36,7 +36,7 @@ type LogConfig struct {
 	LinkName     string
 	RotationTime time.Duration
 	MaxAge       time.Duration
-	Offset       time.Duration
+	Location     string
 }
 
 type BackendConfig struct {
