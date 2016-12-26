@@ -34,5 +34,4 @@ $(GAE)/goapp:
 	@mv go_appengine/* $(GAE)
 
 appengine_test: $(GAE)/goapp
-	@env $(PATH)
 	goapp test -v $(shell glide-$(GOOS)-$(GOARCH)/glide novendor)
