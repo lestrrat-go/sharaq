@@ -22,7 +22,7 @@ else
 	$(MAKE) appengine_test
 endif
 
-$(GAE):
+$(GAE): $(GAE)/goapp
 	wget -q https://storage.googleapis.com/appengine-sdks/featured/go_appengine_sdk_$(GOOS)_$(GOARCH)-1.9.48.zip
 	unzip go_appengine_sdk_$(GOOS)_$(GOARCH)-1.9.48.zip
 	mv go_appengine $(GAE)
