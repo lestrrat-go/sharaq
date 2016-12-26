@@ -21,6 +21,7 @@ type Server struct {
 	bucketName  string
 	listenAddr  string
 	logConfig   *LogConfig
+	tokens      map[string]struct{} // tokens required to accept administrative requests
 	transformer *transformer.Transformer
 	whitelist   []*regexp.Regexp
 }
@@ -53,6 +54,7 @@ type Config struct {
 	Debug     bool
 	Listen    string // listen on this address. default is 0.0.0.0:9090
 	Presets   map[string]string
+	Tokens    []string
 	URLCache  *urlcache.Config
 	Whitelist []string
 }

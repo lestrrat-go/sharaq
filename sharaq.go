@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/lestrrat/sharaq/aws"
@@ -19,8 +20,24 @@ import (
 )
 
 func NewServer(c *Config) (*Server, error) {
+	// Just so that we don't barf...
+	if c == nil {
+		c = &Config{}
+	}
+
 	s := &Server{
 		config: c,
+	}
+
+	if len(c.Tokens) > 0 {
+		s.tokens = make(map[string]struct{})
+		for _, tok := range c.Tokens {
+			// Don't allow empty tokens
+			tok = strings.TrimSpace(tok)
+			if len(tok) > 0 {
+				s.tokens[tok] = struct{}{}
+			}
+		}
 	}
 
 	whitelist := make([]*regexp.Regexp, len(c.Whitelist))
@@ -138,8 +155,15 @@ func (s *Server) unmarkProcessing(ctx context.Context, u *url.URL) error {
 }
 
 // handleStore accepts PUT requests to create resized images and
-// store them on S3
+// store them in the backend. This only exists so that you may perform
+// repairs for existing images: normally the GET method automatically
+// fetches and creates the resized images
 func (s *Server) handleStore(w http.ResponseWriter, r *http.Request) {
+	if !s.authorized(r) {
+		http.Error(w, `not authorized`, http.StatusForbidden)
+		return
+	}
+
 	u, err := util.GetTargetURL(r)
 	if err != nil {
 		http.Error(w, `url parameter missing`, http.StatusBadRequest)
@@ -168,6 +192,11 @@ func (s *Server) handleStore(w http.ResponseWriter, r *http.Request) {
 
 // handleDelete accepts DELETE requests to delete all known resized images
 func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
+	if !s.authorized(r) {
+		http.Error(w, `not authorized`, http.StatusForbidden)
+		return
+	}
+
 	u, err := util.GetTargetURL(r)
 	if err != nil {
 		http.Error(w, `url parameter missing`, http.StatusBadRequest)
@@ -190,4 +219,12 @@ func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// w.Header().Add("X-Sharaq-Elapsed-Time", fmt.Sprintf("%0.2f", time.Since(start).Seconds()))
+}
+
+func (s *Server) authorized(r *http.Request) bool {
+	// Must have token in header
+	// XXX Allow tokens in database
+	tok := r.Header.Get("Sharaq-Token")
+	_, ok := s.tokens[tok]
+	return ok
 }
