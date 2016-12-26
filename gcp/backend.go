@@ -68,7 +68,7 @@ func (s *StorageBackend) Serve(w http.ResponseWriter, r *http.Request) {
 	if cachedURL := s.cache.Lookup(util.RequestCtx(r), cacheKey); cachedURL != "" {
 		log.Printf("Cached entry found for %s:%s -> %s", preset, u.String(), cachedURL)
 		w.Header().Add("Location", cachedURL)
-		w.WriteHeader(301)
+		w.WriteHeader(http.StatusMovedPermanently)
 		return
 	}
 
@@ -82,7 +82,7 @@ func (s *StorageBackend) Serve(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Object %s exists. Redirecting to proper location", specificURL)
 			go s.cache.Set(context.Background(), cacheKey, specificURL)
 			w.Header().Add("Location", specificURL)
-			w.WriteHeader(301)
+			w.WriteHeader(http.StatusMovedPermanently)
 			return
 		}
 	}

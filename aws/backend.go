@@ -59,7 +59,7 @@ func (s *S3Backend) Serve(w http.ResponseWriter, r *http.Request) {
 	if cachedURL := s.cache.Lookup(util.RequestCtx(r), cacheKey); cachedURL != "" {
 		log.Printf("Cached entry found for %s:%s -> %s", preset, u.String(), cachedURL)
 		w.Header().Add("Location", cachedURL)
-		w.WriteHeader(301)
+		w.WriteHeader(http.StatusMovedPermanently)
 		return
 	}
 
@@ -78,7 +78,7 @@ func (s *S3Backend) Serve(w http.ResponseWriter, r *http.Request) {
 		go s.cache.Set(context.Background(), cacheKey, specificURL)
 		log.Printf("HEAD request to %s was success. Redirecting to proper location", specificURL)
 		w.Header().Add("Location", specificURL)
-		w.WriteHeader(301)
+		w.WriteHeader(http.StatusMovedPermanently)
 		return
 	}
 
