@@ -3,7 +3,6 @@
 package sharaq
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"log"
@@ -20,6 +19,7 @@ import (
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 )
 
 func (s *Server) Run(ctx context.Context) error {

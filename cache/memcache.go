@@ -4,8 +4,8 @@ package cache
 
 import (
 	"github.com/bradfitz/gomemcache/memcache"
-	"github.com/lestrrat/sharaq/internal/context"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 )
 
 type Memcache struct {

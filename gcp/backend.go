@@ -8,12 +8,12 @@ import (
 	"path"
 
 	"cloud.google.com/go/storage"
+	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/option"
 
 	"github.com/lestrrat/sharaq/internal/bbpool"
-	"github.com/lestrrat/sharaq/internal/context"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"

@@ -6,8 +6,9 @@ import (
 	"io"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/lestrrat/sharaq/cache"
-	"github.com/lestrrat/sharaq/internal/context"
 	"github.com/pkg/errors"
 )
 
@@ -75,7 +76,7 @@ func WithExpires(t time.Duration) SetOption {
 	}
 }
 
-func (o option) Name() string { return o.name }
+func (o option) Name() string       { return o.name }
 func (o option) Value() interface{} { return o.value }
 
 func (c *URLCache) Set(ctx context.Context, key, value string, options ...SetOption) error {

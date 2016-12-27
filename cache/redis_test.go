@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/lestrrat/sharaq/cache"
-	"github.com/lestrrat/sharaq/internal/context"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/net/context"
 	redis "gopkg.in/redis.v5"
 )
 

@@ -1,5 +1,5 @@
-hash: f08511740a6ddee1807c8d37934dbdc157c86ff9be05fd1e5d3d039bc7b95265
-updated: 2016-12-26T22:00:35.878557067+09:00
+hash: fe56f86640cb8ae8fdbb7cd985624717502cb08f5ea800ce70d6776e67dec58f
+updated: 2016-12-27T15:46:19.823954666+09:00
 imports:
 - name: bitbucket.org/tebeka/strftime
   version: 2194253a23c0
@@ -27,6 +27,8 @@ imports:
   - proto
 - name: github.com/googleapis/gax-go
   version: da06d194a00e19ce00d9011a13931c3f6f6887c7
+- name: github.com/kelseyhightower/envconfig
+  version: 5c008110b20b657eb7e005b83d0a5f6aa6bb5f4b
 - name: github.com/lestrrat/go-apache-logformat
   version: aef9f5955f335dc2fbb969c95b849347b15e36c9
 - name: github.com/lestrrat/go-bufferpool

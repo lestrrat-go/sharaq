@@ -7,10 +7,11 @@ import (
 	"net/url"
 	"sync"
 
+	"golang.org/x/net/context"
+
 	"github.com/goamz/goamz/aws"
 	"github.com/goamz/goamz/s3"
 	"github.com/lestrrat/sharaq/internal/bbpool"
-	"github.com/lestrrat/sharaq/internal/context"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"

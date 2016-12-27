@@ -9,9 +9,9 @@ import (
 	"github.com/lestrrat/sharaq/aws"
 	"github.com/lestrrat/sharaq/fs"
 	"github.com/lestrrat/sharaq/gcp"
-	"github.com/lestrrat/sharaq/internal/context"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
+	"golang.org/x/net/context"
 )
 
 type Server struct {
@@ -49,7 +49,7 @@ type BackendConfig struct {
 
 type Config struct {
 	filename  string
-	AccessLog *LogConfig // dispatcher log. if nil, logs to stderr
+	AccessLog *LogConfig // access log. if nil, logs to stderr
 	Backend   BackendConfig
 	Debug     bool
 	Listen    string // listen on this address. default is 0.0.0.0:9090

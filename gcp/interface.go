@@ -1,5 +1,5 @@
 package gcp
 
 type Config struct {
-	BucketName string
+	BucketName string `env:"bucket_name"`
 }

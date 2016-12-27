@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/lestrrat/sharaq/internal/context"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 
 	cache "gopkg.in/go-redis/cache.v5"
 	redis "gopkg.in/redis.v5"
