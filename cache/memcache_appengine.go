@@ -5,8 +5,8 @@ package cache
 import (
 	"time"
 
-	"github.com/lestrrat/sharaq/internal/context"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 	"google.golang.org/appengine/memcache"
 )
 

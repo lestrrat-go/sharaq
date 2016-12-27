@@ -1,5 +1,5 @@
-hash: fe56f86640cb8ae8fdbb7cd985624717502cb08f5ea800ce70d6776e67dec58f
-updated: 2016-12-27T15:46:19.823954666+09:00
+hash: c421e8ca8398f14aaa03866e9318ce784783e7a4cacd3d486458f23617ff8f0a
+updated: 2016-12-27T18:55:00.242887794+09:00
 imports:
 - name: bitbucket.org/tebeka/strftime
   version: 2194253a23c0
@@ -33,12 +33,26 @@ imports:
   version: aef9f5955f335dc2fbb969c95b849347b15e36c9
 - name: github.com/lestrrat/go-bufferpool
   version: a1a4a9cf09b4f3e6d263ba25cf09de3276e1d589
+- name: github.com/lestrrat/go-envload
+  version: e3d37b56df13cfecc14abc47df75ef1481944e39
 - name: github.com/lestrrat/go-file-rotatelogs
   version: bc38c242fc0ce0028bf4df5ebd8a2a1ae9cedea1
 - name: github.com/lestrrat/go-server-starter
   version: f9cb0b066498d26a90fd918fe265adbb0ea02bcf
   subpackages:
   - listener
+- name: github.com/lestrrat/sharaq
+  version: e5693fdcbbec620c5bff5ce05a18b99b682bc68f
+  subpackages:
+  - aws
+  - fs
+  - gcp
+  - internal/transformer
+  - internal/urlcache
+  - internal/util
+  - internal/bbpool
+  - cache
+  - internal/crc64
 - name: github.com/pkg/errors
   version: 248dadf4e9068a0b3e79f02ed0a610d935de5302
 - name: github.com/stretchr/testify

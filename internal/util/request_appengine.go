@@ -5,7 +5,7 @@ package util
 import (
 	"net/http"
 
-	"github.com/lestrrat/sharaq/internal/context"
+	"golang.org/x/net/context"
 	"google.golang.org/appengine"
 )
 
