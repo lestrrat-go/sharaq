@@ -15,12 +15,13 @@ func TestConfig(t *testing.T) {
 	l := envload.New()
 	defer l.Restore()
 
+	os.Setenv("SHARAQ_BACKEND_TYPE", "gcp")
+
 	var c Config
 	if !assert.NoError(t, envconfig.Process("SHARAQ", &c), "envconfig.Process should succeed") {
 		return
 	}
 
-	os.Setenv("SHARAQ_BACKEND_TYPE", "gcp")
 	if !assert.Equal(t, "gcp", c.Backend.Type, "backend should be gcp") {
 		return
 	}
