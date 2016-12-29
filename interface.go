@@ -44,7 +44,7 @@ type BackendConfig struct {
 	Amazon     aws.Config // AWS specific config
 	Type       string     // "aws" or "gcp" ("fs" for local debugging)
 	FileSystem fs.Config  // File system specific config
-	Google     gcp.Config // Google specific config
+	Google     gcp.Config `env:"gcp"` // Google specific config
 }
 
 type Config struct {

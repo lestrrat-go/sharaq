@@ -5,13 +5,13 @@ package sharaq
 import (
 	"net/http"
 
-	"github.com/kelseyhightower/envconfig"
+	"github.com/lestrrat/go-config/env"
 	"github.com/lestrrat/sharaq"
 )
 
 func init() {
 	var c sharaq.Config
-	if err := envconfig.Process("SHARAQ", &c); err != nil {
+	if err := env.NewDecoder(env.System).Prefix("SHARAQ").Decode(&c); err != nil {
 		panic(err.Error())
 	}
 

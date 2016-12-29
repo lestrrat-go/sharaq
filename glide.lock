@@ -1,10 +1,10 @@
-hash: c421e8ca8398f14aaa03866e9318ce784783e7a4cacd3d486458f23617ff8f0a
-updated: 2016-12-27T18:55:00.242887794+09:00
+hash: abeaa1e48b76c3da99f6dd8e98c00ba23822bec716626cefd7b9505717111df8
+updated: 2016-12-29T16:26:45.178005684+09:00
 imports:
 - name: bitbucket.org/tebeka/strftime
   version: 2194253a23c0
 - name: cloud.google.com/go
-  version: 3c4c8cc11d151d76587802cb55dd7b80beca832b
+  version: 4e436992a513aa1dec28f8adda5c8173724d493e
   subpackages:
   - storage
   - internal
@@ -14,6 +14,10 @@ imports:
   version: 2fafb84a66c4911e11a8f50955b01e74fe3ab9c5
   subpackages:
   - memcache
+- name: github.com/davecgh/go-spew
+  version: 346938d642f2ec3594ed81d874461961cd0faa76
+  subpackages:
+  - spew
 - name: github.com/disintegration/imaging
   version: 7cbe056568779e3d987cd1b5e3dbe12c4f79f1ff
 - name: github.com/goamz/goamz
@@ -27,32 +31,25 @@ imports:
   - proto
 - name: github.com/googleapis/gax-go
   version: da06d194a00e19ce00d9011a13931c3f6f6887c7
-- name: github.com/kelseyhightower/envconfig
-  version: 5c008110b20b657eb7e005b83d0a5f6aa6bb5f4b
 - name: github.com/lestrrat/go-apache-logformat
   version: aef9f5955f335dc2fbb969c95b849347b15e36c9
 - name: github.com/lestrrat/go-bufferpool
   version: a1a4a9cf09b4f3e6d263ba25cf09de3276e1d589
+- name: github.com/lestrrat/go-config
+  version: 7d2e53cae8f87d15df7ca84230a5ae1cb565ed52
+  subpackages:
+  - env
+  - env/internal/structtag
 - name: github.com/lestrrat/go-envload
   version: e3d37b56df13cfecc14abc47df75ef1481944e39
 - name: github.com/lestrrat/go-file-rotatelogs
   version: bc38c242fc0ce0028bf4df5ebd8a2a1ae9cedea1
+- name: github.com/lestrrat/go-pdebug
+  version: 2e6eaaa5717f81bda41d27070d3c966f40a1e75f
 - name: github.com/lestrrat/go-server-starter
   version: f9cb0b066498d26a90fd918fe265adbb0ea02bcf
   subpackages:
   - listener
-- name: github.com/lestrrat/sharaq
-  version: e5693fdcbbec620c5bff5ce05a18b99b682bc68f
-  subpackages:
-  - aws
-  - fs
-  - gcp
-  - internal/transformer
-  - internal/urlcache
-  - internal/util
-  - internal/bbpool
-  - cache
-  - internal/crc64
 - name: github.com/pkg/errors
   version: 248dadf4e9068a0b3e79f02ed0a610d935de5302
 - name: github.com/stretchr/testify
@@ -66,7 +63,7 @@ imports:
   subpackages:
   - syncutil/singleflight
 - name: golang.org/x/image
-  version: f1b1ff53e10e288d0ab6f161067c0a69b72cee28
+  version: 3ba119400e6fd98bf5100d1c17303c377b6521e9
   subpackages:
   - bmp
   - tiff
@@ -123,7 +120,7 @@ imports:
   - internal/socket
   - internal/urlfetch
 - name: google.golang.org/grpc
-  version: 9d682f9293b408c42d17c587d0e2a31237ac3f10
+  version: c8105071640ef29fce843ed96983e864bb18eb0e
   subpackages:
   - codes
   - credentials
