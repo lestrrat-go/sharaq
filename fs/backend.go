@@ -75,6 +75,7 @@ func (f *Backend) Serve(w http.ResponseWriter, r *http.Request) {
 		// HIT. Serve this guy after filling the cache
 		f.cache.Set(util.RequestCtx(r), cacheKey, path)
 		http.ServeFile(w, r, path)
+		return
 	}
 
 	// transformed files are not available. Let the client received the original one
@@ -90,7 +91,7 @@ func (f *Backend) Serve(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	w.Header().Add("Location", u.String())
-	w.WriteHeader(302)
+	w.WriteHeader(http.StatusFound)
 }
 
 func (f *Backend) StoreTransformedContent(ctx context.Context, u *url.URL) error {

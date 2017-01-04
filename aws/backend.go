@@ -91,7 +91,7 @@ func (s *S3Backend) Serve(w http.ResponseWriter, r *http.Request) {
 
 FALLBACK:
 	w.Header().Add("Location", u.String())
-	w.WriteHeader(302)
+	w.WriteHeader(http.StatusFound)
 }
 
 func (s *S3Backend) StoreTransformedContent(ctx context.Context, u *url.URL) error {

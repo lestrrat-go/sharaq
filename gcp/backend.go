@@ -100,7 +100,7 @@ func (s *StorageBackend) Serve(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Fallback to serving original content at %s", u)
 	w.Header().Add("Location", u.String())
-	w.WriteHeader(302)
+	w.WriteHeader(http.StatusFound)
 }
 
 func makeStoragePath(preset string, u *url.URL) string {
