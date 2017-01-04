@@ -293,7 +293,7 @@ func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) authorized(r *http.Request) bool {
-	if r.Header.Get("X-Appengine-Request-Log-Id") != "" {
+	if r.Header.Get("X-Appengine-Taskname") != "" {
 		// Trust inbound taskqueue requests
 		return true
 	}

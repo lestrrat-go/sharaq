@@ -11,3 +11,7 @@ import (
 func RequestCtx(r *http.Request) context.Context {
 	return r.Context()
 }
+
+func TransportCtx(t http.RoundTripper) context.Context {
+	return context.Background()
+}

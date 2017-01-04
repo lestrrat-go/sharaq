@@ -71,11 +71,13 @@ func (s *StorageBackend) Get(ctx context.Context, u *url.URL, preset string) (ht
 		return nil, errors.Wrap(err, `failed to create client`)
 	}
 
-	if _, err := cl.Bucket(s.bucketName).Object(s.makeStoragePath(preset, u)).Attrs(ctx); err != nil {
+	path := s.makeStoragePath(preset, u)
+	if _, err := cl.Bucket(s.bucketName).Object(path).Attrs(ctx); err != nil {
+		log.Debugf(ctx, "content at %s does not exist, request transformation", path)
 		return nil, errors.TransformationRequiredError{}
 	}
 
-	specificURL := u.Scheme + "://storage.googleapis.com/" + s.makeStoragePath(preset, u)
+	specificURL := u.Scheme + "://storage.googleapis.com/" + s.bucketName + "/" + path
 	return redirectContent(specificURL), nil
 }
 
