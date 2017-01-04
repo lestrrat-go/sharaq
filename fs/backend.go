@@ -1,18 +1,19 @@
 package fs
 
 import (
-	"errors"
-	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
+	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/lestrrat/sharaq/internal/bbpool"
+	"github.com/lestrrat/sharaq/internal/errors"
+	"github.com/lestrrat/sharaq/internal/log"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"
@@ -31,7 +32,7 @@ func NewBackend(c *Config, cache *urlcache.URLCache, trans *transformer.Transfor
 	if root == "" {
 		return nil, errors.New("fs backend: 'Root' is required")
 	}
-	log.Printf("Backend: storing files under %s", root)
+	log.Debugf(context.Background(), "Backend: storing files under %s", root)
 	return &Backend{
 		root:        root,
 		cache:       cache,
@@ -47,146 +48,102 @@ func (f *Backend) EncodeFilename(preset string, urlstr string) string {
 	return filepath.Join(f.root, util.HashedPath(preset, urlstr))
 }
 
-func (f *Backend) Serve(w http.ResponseWriter, r *http.Request) {
-	u, err := util.GetTargetURL(r)
-	if err != nil {
-		log.Printf("Bad url: %s", err)
-		http.Error(w, "Bad url", 500)
-		return
-	}
+type fileServer string
 
-	preset, err := util.GetPresetFromRequest(r)
-	if err != nil {
-		log.Printf("Bad preset: %s", err)
-		http.Error(w, "Bad preset", 500)
-		return
-	}
+func (s fileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	log.Debugf(util.RequestCtx(r), "Serving file %s", s)
+	http.ServeFile(w, r, string(s))
+}
 
+func (f *Backend) Get(ctx context.Context, u *url.URL, preset string) (http.Handler, error) {
 	cacheKey := urlcache.MakeCacheKey("fs", preset, u.String())
-	if cachedFile := f.cache.Lookup(cacheKey); cachedFile != "" {
-		log.Printf("Cached entry found for %s:%s -> %s", preset, u.String(), cachedFile)
-		http.ServeFile(w, r, cachedFile)
-		return
+	if cachedFile := f.cache.Lookup(ctx, cacheKey); cachedFile != "" {
+		log.Debugf(ctx, "Cached entry found for %s:%s -> %s", preset, u.String(), cachedFile)
+		return fileServer(cachedFile), nil
 	}
 
 	path := f.EncodeFilename(preset, u.String())
 	if _, err := os.Stat(path); err == nil {
 		// HIT. Serve this guy after filling the cache
-		f.cache.Set(cacheKey, path)
-		http.ServeFile(w, r, path)
+		return fileServer(path), nil
 	}
 
-	// transformed files are not available. Let the client received the original one
-	go func() {
-		if err := f.StoreTransformedContent(u); err != nil {
-			log.Printf("Backend: transformation failed: %s", err)
-		}
-	}()
-
-	w.Header().Add("Location", u.String())
-	w.WriteHeader(302)
+	return nil, errors.TransformationRequiredError{}
 }
 
-func (f *Backend) StoreTransformedContent(u *url.URL) error {
-	log.Printf("Backend: transforming image at url %s", u)
+func (f *Backend) StoreTransformedContent(ctx context.Context, u *url.URL) error {
+	log.Debugf(ctx, "Backend: transforming image at url %s", u)
 
-	wg := &sync.WaitGroup{}
-	errCh := make(chan error, len(f.presets))
+	var grp *errgroup.Group
+	grp, ctx = errgroup.WithContext(ctx)
+
 	for preset, rule := range f.presets {
-		wg.Add(1)
-		go func(wg *sync.WaitGroup, t *transformer.Transformer, preset string, rule string, errCh chan error) {
-			defer wg.Done()
-
+		t := f.transformer
+		preset := preset
+		rule := rule
+		grp.Go(func() error {
 			buf := bbpool.Get()
 			defer bbpool.Release(buf)
 
 			var res transformer.Result
 			res.Content = buf
 
-			log.Printf("Backend: applying transformation %s (%s)...", preset, rule)
-			if err := t.Transform(rule, u.String(), &res); err != nil {
-				errCh <- err
-				return
+			log.Debugf(ctx, "Backend: applying transformation %s (%s)...", preset, rule)
+			if err := t.Transform(ctx, rule, u.String(), &res); err != nil {
+				return errors.Wrap(err, `failed to transform`)
 			}
 
 			path := f.EncodeFilename(preset, u.String())
-			log.Printf("Saving to %s...", path)
+			log.Debugf(ctx, "Saving to %s...", path)
 
 			dir := filepath.Dir(path)
 			if _, err := os.Stat(dir); err != nil {
 				if err := os.MkdirAll(filepath.Dir(path), 0744); err != nil {
-					errCh <- err
-					return
+					return errors.Wrapf(err, `failed to create directory %s`, filepath.Dir(path))
 				}
 			}
 
 			fh, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0644)
 			if err != nil {
-				errCh <- err
-				return
+				return errors.Wrapf(err, `failed to open file %s`, path)
 			}
 
 			defer fh.Close()
 			if _, err := io.Copy(fh, buf); err != nil {
-				errCh <- err
-				return
+				return errors.Wrapf(err, `failed to write content to %s`, path)
 			}
-		}(wg, f.transformer, preset, rule, errCh)
-	}
-	wg.Wait()
-	close(errCh)
-
-	buf := bbpool.Get()
-	defer bbpool.Release(buf)
-
-	for err := range errCh {
-		fmt.Fprintf(buf, "Err: %s\n", err)
+			cacheKey := urlcache.MakeCacheKey("fs", preset, u.String())
+			f.cache.Set(ctx, cacheKey, path)
+			return nil
+		})
 	}
 
 	// Cleanup disk
 	go f.CleanStorageRoot()
-
-	if buf.Len() > 0 {
-		return fmt.Errorf("error while transforming: %s", buf.String())
-	}
-
-	return nil
+	return grp.Wait()
 }
 
-func (f *Backend) Delete(u *url.URL) error {
-	wg := &sync.WaitGroup{}
-	errCh := make(chan error, len(f.presets))
+func (f *Backend) Delete(ctx context.Context, u *url.URL) error {
+	var grp *errgroup.Group
+	grp, ctx = errgroup.WithContext(ctx)
+
 	for preset := range f.presets {
-		wg.Add(1)
-		go func(wg *sync.WaitGroup, preset string, errCh chan error) {
-			defer wg.Done()
+		preset := preset
+		grp.Go(func() error {
 			path := f.EncodeFilename(preset, u.String())
-			log.Printf(" + DELETE filesystem entry %s\n", path)
+			log.Debugf(ctx, " + DELETE filesystem entry %s\n", path)
 			if err := os.Remove(path); err != nil {
-				errCh <- err
+				return errors.Wrapf(err, `failed to remove path %s`, path)
 			}
 
 			// fallthrough here regardless, because it's better to lose the
 			// cache than to accidentally have one linger
-			f.cache.Delete(urlcache.MakeCacheKey("fs", preset, u.String()))
-		}(wg, preset, errCh)
+			f.cache.Delete(context.Background(), urlcache.MakeCacheKey("fs", preset, u.String()))
+			return nil
+		})
 	}
 
-	wg.Wait()
-	close(errCh)
-
-	buf := bbpool.Get()
-	defer bbpool.Release(buf)
-
-	for err := range errCh {
-		fmt.Fprintf(buf, "Err: %s\n", err)
-	}
-
-	if buf.Len() > 0 {
-		return fmt.Errorf("error while deleting: %s", buf.String())
-	}
-
-	return nil
+	return errors.Wrap(grp.Wait(), `deleting from file system`)
 }
 
 func (f *Backend) CleanStorageRoot() error {

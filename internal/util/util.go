@@ -48,3 +48,4 @@ func HashedPath(s ...string) string {
 	// given "abcdef", generates "a/ab/abc/abcd/abcdef"
 	return filepath.Join(v[0:1], v[0:2], v[0:3], v[0:4], v)
 }
+

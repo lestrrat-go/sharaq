@@ -1,10 +1,11 @@
-// +build !redis
+// +build !appengine
 
 package cache
 
 import (
 	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 )
 
 type Memcache struct {
@@ -21,7 +22,7 @@ func NewMemcache(server ...string) *Memcache {
 	}
 }
 
-func (m *Memcache) Get(key string, value interface{}) error {
+func (m *Memcache) Get(_ context.Context, key string, value interface{}) error {
 	it, err := m.client.Get(key)
 	if err != nil {
 		return errors.Wrap(err, `failed to fetch from memcached`)
@@ -41,10 +42,14 @@ func (m *Memcache) Get(key string, value interface{}) error {
 	return nil
 }
 
-func (m *Memcache) Set(key string, value []byte, expires int32) error {
+func (m *Memcache) Set(_ context.Context, key string, value []byte, expires int32) error {
 	return m.client.Set(&memcache.Item{Key: key, Value: value, Expiration: expires})
 }
 
-func (m *Memcache) Delete(key string) error {
+func (m *Memcache) SetNX(_ context.Context, key string, value []byte, expires int32) error {
+	return m.client.Add(&memcache.Item{Key: key, Value: value, Expiration: expires})
+}
+
+func (m *Memcache) Delete(_ context.Context, key string) error {
 	return m.client.Delete(key)
 }

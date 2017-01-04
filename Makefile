@@ -1,6 +1,9 @@
 GOVERSION=$(shell go version)
 GOOS=$(word 1,$(subst /, ,$(word $(words $(GOVERSION)), $(GOVERSION))))
 GOARCH=$(word 2,$(subst /, ,$(word $(words $(GOVERSION)), $(GOVERSION))))
+ifneq ($(GAE),)
+export PATH := $(GAE):$(PATH)
+endif
 
 installdeps: glide-$(GOOS)-$(GOARCH)/glide
 	PATH=glide-$(GOOS)-$(GOARCH):$(PATH) glide install
@@ -16,8 +19,19 @@ glide-$(GOOS)-$(GOARCH)/glide:
 	@rm -rf $(GOOS)-$(GOARCH)
 
 test:
-ifdef $(CACHE)
-	$(eval TAGS := "$(TAGS) $(CACHE)")
+ifeq ($(GAE),)
+	go test -v $(shell glide-$(GOOS)-$(GOARCH)/glide novendor)
+else
+	$(MAKE) appengine_test
 endif
 
-	go test -v -tags '$(TAGS)' $(shell glide-$(GOOS)-$(GOARCH)/glide novendor)
+$(GAE)/goapp:
+	@mkdir -p .download
+	@mkdir -p $(GAE)
+	wget -q https://storage.googleapis.com/appengine-sdks/featured/go_appengine_sdk_$(GOOS)_$(GOARCH)-1.9.48.zip
+	@mv go_appengine_sdk_$(GOOS)_$(GOARCH)-1.9.48.zip .download/
+	@unzip .download/go_appengine_sdk_$(GOOS)_$(GOARCH)-1.9.48.zip > /dev/null
+	@mv go_appengine/* $(GAE)
+
+appengine_test: $(GAE)/goapp
+	goapp test -v $(shell glide-$(GOOS)-$(GOARCH)/glide novendor)

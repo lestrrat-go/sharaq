@@ -1,3 +1,5 @@
+// +build !appengine
+
 package transformer
 
 import (
@@ -8,7 +10,6 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
-	"log"
 	"net/http"
 	"reflect"
 	"testing"
@@ -16,6 +17,7 @@ import (
 	"github.com/disintegration/imaging"
 	"github.com/lestrrat/sharaq/internal/bbpool"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/net/context"
 )
 
 func TestOptions_String(t *testing.T) {
@@ -218,6 +220,7 @@ func TestTransform(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		// Grr, appengine go is too old to use t.Run
 		t.Run("emptyOption, type = "+tt.name, func(t *testing.T) {
 			src := bbpool.Get()
 			defer bbpool.Release(src)
@@ -231,14 +234,13 @@ func TestTransform(t *testing.T) {
 
 			srcbytes := src.Bytes()
 
-			log.Printf("transform")
-			if !assert.NoError(t, transform(dst, src, emptyOptions), "Transform with encoder should succeed") {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if !assert.NoError(t, transform(ctx, dst, src, emptyOptions), "Transform with encoder should succeed") {
 				return
 			}
 
-			log.Printf("check equal")
 			if !assert.Equal(t, srcbytes, dst.Bytes(), "Transform with encoder %s with empty options returned modified result", tt.name) {
-				log.Printf("failed")
 				return
 			}
 		})
@@ -255,7 +257,9 @@ func TestTransform(t *testing.T) {
 
 			srcbytes := src.Bytes()
 
-			if !assert.NoError(t, transform(dst, src, Options{Width: -1, Height: -1}), "Transform with encoder %s returned unexpected error", tt.name) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if !assert.NoError(t, transform(ctx, dst, src, Options{Width: -1, Height: -1}), "Transform with encoder %s returned unexpected error", tt.name) {
 				return
 			}
 
@@ -277,7 +281,9 @@ func TestTransform(t *testing.T) {
 
 		dst := bbpool.Get()
 		defer bbpool.Release(dst)
-		if !assert.Error(t, transform(dst, src, Options{Width: 1}), "Transform with invalid image input did not return expected err") {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		if !assert.Error(t, transform(ctx, dst, src, Options{Width: 1}), "Transform with invalid image input did not return expected err") {
 			return
 		}
 	})

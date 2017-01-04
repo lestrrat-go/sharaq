@@ -1,11 +1,14 @@
+// +build !appengine
+
 package main
 
 import (
+	"context"
 	"flag"
-	"log"
 	"os"
 
 	"github.com/lestrrat/sharaq"
+	"github.com/lestrrat/sharaq/internal/log"
 )
 
 const version = "0.0.8"
@@ -24,16 +27,24 @@ func _main() int {
 		return 0
 	}
 
-	config := &sharaq.Config{}
-	log.Printf("Using config file %s", *cfgfile)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var config sharaq.Config
+	log.Debugf(ctx, "Using config file %s", *cfgfile)
 	if err := config.ParseFile(*cfgfile); err != nil {
-		log.Printf("Failed to parse '%s': %s", *cfgfile, err)
+		log.Debugf(ctx, "Failed to parse '%s': %s", *cfgfile, err)
 		return 1
 	}
 
-	s := sharaq.NewServer(config)
-	if err := s.Run(); err != nil {
-		log.Printf("Failed to run server: %s", err)
+	s, err := sharaq.NewServer(&config)
+	if err != nil {
+		log.Debugf(ctx, "Failed to instantiate server: %s", err)
+		return 1
+	}
+
+	if err := s.Run(ctx); err != nil {
+		log.Debugf(ctx, "Failed to run server: %s", err)
 		return 1
 	}
 

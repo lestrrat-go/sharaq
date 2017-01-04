@@ -29,14 +29,40 @@ and transform that to below when passing to the actual sharaq app
 
 # CONFIGURATION
 
+## Listen Address
+
+```json
+{
+  "Listen": "0.0.0.0:8080"
+}
+```
+
+## Access Log
+
+See also: https://github.com/lestrrat/go-apache-logformat
+
+```json
+{
+  "AccessLog": {
+    "LogFile": "/path/to/logfile",
+    "LinkName": "/path/to/linkname.%Y%m%d",
+    "RotationTime": 86400,
+    "MaxAge": 172800,
+  }
+}
+```
+
 ## AWS (S3) Backend
 
 ```json
 {
-  "Amazon": {
-    "AccessKey": "...",
-    "SecretKey": "...",
-    "BucketName": "..."
+  "Backend": {
+    "Type": "aws",
+    "Amazon": {
+      "AccessKey": "...",
+      "SecretKey": "...",
+      "BucketName": "..."
+    }
   }
 }
 ```
@@ -83,19 +109,46 @@ For GCP (Google Storage), service keys are looked under several known locations.
 
 ```json
 {
-  "Google": {
-    "BucketName": "..."
+  "Backend": {
+    "Type": "gcp",
+    "Google": {
+      "BucketName": "..."
+    }
   }
 }
 ```
+
+`sharaq` also supports running on Google AppEngine (standard environment). For this to work, you will have to change the setup a bit. You will not need a `config.json` file, but you will have to setup your environment in app.yaml
+
+```yaml
+service: sharaq
+version: 1
+runtime: go
+api_version: go1
+handlers:
+  - url: /
+    script: _go_app
+env_variables:
+  SHARAQ_PRESETS: large=600x600,medium=400x400,small=200x200
+  SHARAQ_BACKEND_TYPE: gcp
+  SHARAQ_BACKEND_GCP_BUCKET_NAME: "bucket-name-of-your-choise"
+  SHARAQ_BACKEND_GCP_PREFIX: "resize (this is optional)"
+  SHARAQ_TOKENS: "foobarbaz (if you want to access the POST/DELETE endpoints via HTTP)"
+  SHARAQ_URLCACHE_TYPE: Memcached
+  SHARAQ_WHITELIST: "whitelisting your target is recommended"
+```
+
 ## File System Backend
 
 The FS backend stores all the images in a directory in the sharaq host. You probably don't want to use this except for testing and for debugging.
 
 ```json
 {
-  "FileSystem": {
-    "StorageRoot": "/path/to/storage-dir"
+  "Backend": {
+    "Type": "fs",
+    "FileSystem": {
+      "StorageRoot": "/path/to/storage-dir"
+    }
   }
 }
 ```

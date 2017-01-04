@@ -1,36 +1,46 @@
 package gcp
 
 import (
-	"context"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"path"
 
 	"cloud.google.com/go/storage"
+	"golang.org/x/net/context"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/option"
 
 	"github.com/lestrrat/sharaq/internal/bbpool"
+	"github.com/lestrrat/sharaq/internal/errors"
+	"github.com/lestrrat/sharaq/internal/log"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"
-	"github.com/pkg/errors"
 )
 
 type StorageBackend struct {
 	bucketName  string
 	cache       *urlcache.URLCache
+	prefix      string
 	presets     map[string]string
 	transformer *transformer.Transformer
+}
+
+type redirectContent string
+
+func (s redirectContent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	log.Debugf(util.RequestCtx(r), "Object %s exists. Redirecting to proper location", string(s))
+	w.Header().Add("Location", string(s))
+	w.WriteHeader(http.StatusMovedPermanently)
 }
 
 func NewBackend(c *Config, cache *urlcache.URLCache, trans *transformer.Transformer, presets map[string]string) (*StorageBackend, error) {
 	return &StorageBackend{
 		bucketName:  c.BucketName,
 		cache:       cache,
+		prefix:      c.Prefix,
 		presets:     presets,
 		transformer: trans,
 	}, nil
@@ -49,66 +59,39 @@ func (s *StorageBackend) getClient(ctx context.Context) (*storage.Client, error)
 	return client, nil
 }
 
-func (s *StorageBackend) Serve(w http.ResponseWriter, r *http.Request) {
-	u, err := util.GetTargetURL(r)
-	if err != nil {
-		log.Printf("Bad url: %s", err)
-		http.Error(w, "Bad url", 500)
-		return
-	}
-
-	preset, err := util.GetPresetFromRequest(r)
-	if err != nil {
-		log.Printf("Bad preset: %s", err)
-		http.Error(w, "Bad preset", 500)
-		return
-	}
-
+func (s *StorageBackend) Get(ctx context.Context, u *url.URL, preset string) (http.Handler, error) {
 	cacheKey := urlcache.MakeCacheKey("gcp", preset, u.String())
-	if cachedURL := s.cache.Lookup(cacheKey); cachedURL != "" {
-		log.Printf("Cached entry found for %s:%s -> %s", preset, u.String(), cachedURL)
-		w.Header().Add("Location", cachedURL)
-		w.WriteHeader(301)
-		return
+	if cachedURL := s.cache.Lookup(ctx, cacheKey); cachedURL != "" {
+		log.Debugf(ctx, "Cached entry found for %s:%s -> %s", preset, u.String(), cachedURL)
+		return redirectContent(cachedURL), nil
 	}
 
-	cl, err := s.getClient(r.Context())
+	cl, err := s.getClient(ctx)
 	if err != nil {
-		log.Printf(`failed to create client: %s`, err)
-	} else {
-		_, err := cl.Bucket(s.bucketName).Object(makeStoragePath(preset, u)).Attrs(r.Context())
-		if err == nil {
-			specificURL := u.Scheme + "://storage.googleapis.com/" + makeStoragePath(preset, u)
-			log.Printf("Object %s exists. Redirecting to proper location", specificURL)
-			go s.cache.Set(cacheKey, specificURL)
-			w.Header().Add("Location", specificURL)
-			w.WriteHeader(301)
-			return
-		}
+		return nil, errors.Wrap(err, `failed to create client`)
 	}
 
-	go func() {
-		// Because this is run in a separate goroutine, we must
-		// use a different context
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+	path := s.makeStoragePath(preset, u)
+	if _, err := cl.Bucket(s.bucketName).Object(path).Attrs(ctx); err != nil {
+		log.Debugf(ctx, "content at %s does not exist, request transformation", path)
+		return nil, errors.TransformationRequiredError{}
+	}
 
-		if err := s.StoreTransformedContent(ctx, u); err != nil {
-			log.Printf("StorageBackend: transformation failed: %s", err)
-		}
-	}()
-
-	log.Printf("Fallback to serving original content at %s", u)
-	w.Header().Add("Location", u.String())
-	w.WriteHeader(302)
+	specificURL := u.Scheme + "://storage.googleapis.com/" + s.bucketName + "/" + path
+	return redirectContent(specificURL), nil
 }
 
-func makeStoragePath(preset string, u *url.URL) string {
-	return path.Join(preset, u.Host, u.Path)
+func (s *StorageBackend) makeStoragePath(preset string, u *url.URL) string {
+	list := make([]string, 0, 4)
+	if s.prefix != "" {
+		list = append(list, s.prefix)
+	}
+	list = append(list, preset, u.Host, u.Path)
+	return path.Join(list...)
 }
 
 func (s *StorageBackend) StoreTransformedContent(ctx context.Context, u *url.URL) error {
-	log.Printf("StorageBackend: transforming image at url %s", u)
+	log.Debugf(ctx, "StorageBackend: transforming image at url %s", u)
 
 	cl, err := s.getClient(ctx)
 	if err != nil {
@@ -133,14 +116,14 @@ func (s *StorageBackend) StoreTransformedContent(ctx context.Context, u *url.URL
 			var res transformer.Result
 			res.Content = buf
 
-			err := t.Transform(rule, u.String(), &res)
+			err := t.Transform(ctx, rule, u.String(), &res)
 			if err != nil {
 				return errors.Wrap(err, `failed to transform image`)
 			}
 
 			// good, done. save it to Google Storage
-			p := makeStoragePath(preset, u)
-			log.Printf("Writing to Google Storage %s...", p)
+			p := s.makeStoragePath(preset, u)
+			log.Debugf(ctx, "Writing to Google Storage %s...", p)
 
 			wc := bkt.Object(p).NewWriter(ctx)
 
@@ -153,7 +136,13 @@ func (s *StorageBackend) StoreTransformedContent(ctx context.Context, u *url.URL
 				return errors.Wrapf(err, `failed to write data to %s`, p)
 			}
 
-			return errors.Wrap(wc.Close(), `failed to properly close writer for google storage`)
+			if err := wc.Close(); err != nil {
+				return errors.Wrap(err, `failed to properly close writer for google storage`)
+			}
+			cacheKey := urlcache.MakeCacheKey("gcY", preset, u.String())
+			specificURL := u.Scheme + "://storage.googleapis.com/" + s.makeStoragePath(preset, u)
+			s.cache.Set(ctx, cacheKey, specificURL)
+			return nil
 		})
 	}
 	return grp.Wait()
@@ -175,10 +164,10 @@ func (s *StorageBackend) Delete(ctx context.Context, u *url.URL) error {
 		grp.Go(func() error {
 			// delete the cache regardless, because it's better to lose the
 			// cache than to accidentally have one linger
-			defer s.cache.Delete(urlcache.MakeCacheKey(preset, u.String()))
+			defer s.cache.Delete(ctx, urlcache.MakeCacheKey(preset, u.String()))
 
-			p := makeStoragePath(preset, u)
-			log.Printf(" + DELETE Google Storage entry %s\n", p)
+			p := s.makeStoragePath(preset, u)
+			log.Debugf(ctx, " + DELETE Google Storage entry %s\n", p)
 			return bkt.Object(p).Delete(ctx)
 		})
 	}

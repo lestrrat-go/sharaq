@@ -9,7 +9,6 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -17,18 +16,18 @@ import (
 
 	"github.com/disintegration/imaging"
 	"github.com/lestrrat/sharaq/internal/bbpool"
+	"github.com/lestrrat/sharaq/internal/log"
+	"github.com/lestrrat/sharaq/internal/util"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 )
 
 // Transformer is based on imageproxy by Will Norris. Code was shamelessly
 // stolen from there.
-type Transformer struct {
-	client *http.Client // client used to fetch remote URLs
-}
+type Transformer struct{}
 
 type TransformingTransport struct {
 	transport http.RoundTripper
-	client    *http.Client
 }
 
 type Result struct {
@@ -38,25 +37,20 @@ type Result struct {
 }
 
 func New() *Transformer {
-	client := &http.Client{}
-	client.Transport = &TransformingTransport{
-		transport: http.DefaultTransport,
-		client:    client,
-	}
-	return &Transformer{
-		client: client,
-	}
+	return &Transformer{}
 }
 
 // Transform takes a string that specifies the transformation,
 // the url of the target, and populates the given result object
 // if transformation was successful
-func (t *Transformer) Transform(options string, u string, result *Result) error {
+func (t *Transformer) Transform(ctx context.Context, options string, u string, result *Result) error {
 	if opts := ParseOptions(options); opts != emptyOptions {
 		u += "#" + opts.String()
 	}
 
-	res, err := t.client.Get(u)
+	// Create a client here (this could be different for appengine)
+	cl := newClient(ctx)
+	res, err := cl.Get(u)
 	if err != nil {
 		return errors.Wrap(err, `failed to fetch remote image`)
 	}
@@ -76,15 +70,20 @@ func (t *Transformer) Transform(options string, u string, result *Result) error 
 }
 
 func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	ctx := util.TransportCtx(t.transport)
 	if req.URL.Fragment == "" {
 		// normal requests pass through
-		log.Printf("fetching remote URL: %v", req.URL)
+		log.Debugf(ctx, "fetching remote URL: %v", req.URL)
 		return t.transport.RoundTrip(req)
 	}
 
 	u := *req.URL
 	u.Fragment = ""
-	resp, err := t.client.Get(u.String())
+
+	cl := http.Client{
+		Transport: t.transport,
+	}
+	resp, err := cl.Get(u.String())
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +94,7 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	defer bbpool.Release(img)
 
 	opt := ParseOptions(req.URL.Fragment)
-	if err := transform(img, resp.Body, opt); err != nil {
+	if err := transform(ctx, img, resp.Body, opt); err != nil {
 		return nil, err
 	}
 
@@ -322,18 +321,21 @@ var resampleFilter = imaging.Lanczos
 // Transform the provided image.  img should contain the raw bytes of an
 // encoded image in one of the supported formats (gif, jpeg, or png).  The
 // bytes of a similarly encoded image is returned.
-func transform(dst io.Writer, img io.Reader, opt Options) error {
+func transform(ctx context.Context, dst io.Writer, img io.Reader, opt Options) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	if opt.String() == emptyOptions.String() { // XXX WTF. This is bad. fix it
 		// bail if no transformation was requested
 		n, err := io.Copy(dst, img)
 		if err != nil {
 			return errors.Wrap(err, `failed to copy image`)
 		}
-		log.Printf("empty options, copied %d bytes", n)
+		log.Debugf(ctx, "empty options, copied %d bytes", n)
 		return nil
 	}
 
-	log.Printf("Transforming image with rule '%#v'", opt)
+	log.Debugf(ctx, "Transforming image with rule '%#v'", opt)
 	// decode image
 	m, format, err := image.Decode(img)
 	if err != nil {

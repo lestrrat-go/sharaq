@@ -1,23 +1,27 @@
-hash: 4588e90c55cb5306648b2bf71903356794c4be06dd37eb6eec2a848fd808a63f
-updated: 2016-12-22T10:34:40.752705731+09:00
+hash: f26bf5a7be90bb9b25e476f603dfc760bc1bc764959366fea4311a9539d3e194
+updated: 2017-01-04T15:12:32.082529586+09:00
 imports:
-- name: bitbucket.org/tebeka/strftime
-  version: 2194253a23c0
 - name: cloud.google.com/go
-  version: 3c4c8cc11d151d76587802cb55dd7b80beca832b
+  version: fa261437944009fe81aa841d9976710d5235a3a7
   subpackages:
-  - storage
+  - compute/metadata
   - internal
   - internal/optional
-  - compute/metadata
+  - storage
 - name: github.com/bradfitz/gomemcache
   version: 2fafb84a66c4911e11a8f50955b01e74fe3ab9c5
   subpackages:
   - memcache
+- name: github.com/davecgh/go-spew
+  version: 346938d642f2ec3594ed81d874461961cd0faa76
+  subpackages:
+  - spew
 - name: github.com/disintegration/imaging
-  version: 7cbe056568779e3d987cd1b5e3dbe12c4f79f1ff
+  version: 243d2d8673c1225a6afceeb9b3b4423d485dc8df
+- name: github.com/fatih/camelcase
+  version: f6a740d52f961c60348ebb109adde9f4635d7540
 - name: github.com/goamz/goamz
-  version: fb002ae75f50beb93874fa6ce2c861e488ce08a0
+  version: b2c2eaf25cbb87f41087aa796facf82113809ed5
   subpackages:
   - aws
   - s3
@@ -31,12 +35,23 @@ imports:
   version: aef9f5955f335dc2fbb969c95b849347b15e36c9
 - name: github.com/lestrrat/go-bufferpool
   version: a1a4a9cf09b4f3e6d263ba25cf09de3276e1d589
+- name: github.com/lestrrat/go-config
+  version: cbc537214dbdde35e3b3d57bcc3492f940856a72
+  subpackages:
+  - env
+  - env/internal/structtag
+- name: github.com/lestrrat/go-envload
+  version: e3d37b56df13cfecc14abc47df75ef1481944e39
 - name: github.com/lestrrat/go-file-rotatelogs
-  version: ab335c655133cea61d8164853c1ed0e97d6c77cb
+  version: 505c036604b3326a96097ca91865df30043093a5
+- name: github.com/lestrrat/go-pdebug
+  version: 2e6eaaa5717f81bda41d27070d3c966f40a1e75f
 - name: github.com/lestrrat/go-server-starter
-  version: f9749b3a958c4aaa5c455e6a263953ebefb254b6
+  version: f9cb0b066498d26a90fd918fe265adbb0ea02bcf
   subpackages:
   - listener
+- name: github.com/lestrrat/go-strftime
+  version: 8ebaf644f3e9cdfdc2428613f61e82445c3b0586
 - name: github.com/pkg/errors
   version: 248dadf4e9068a0b3e79f02ed0a610d935de5302
 - name: github.com/stretchr/testify
@@ -50,22 +65,22 @@ imports:
   subpackages:
   - syncutil/singleflight
 - name: golang.org/x/image
-  version: f1b1ff53e10e288d0ab6f161067c0a69b72cee28
+  version: 3ba119400e6fd98bf5100d1c17303c377b6521e9
   subpackages:
   - bmp
   - tiff
   - tiff/lzw
 - name: golang.org/x/net
-  version: 45e771701b814666a7eb299e6c7a57d0b1799e91
+  version: 69d4b8aa71caaaa75c3dfc11211d1be495abec7c
   subpackages:
   - context
   - context/ctxhttp
   - http2
-  - trace
   - http2/hpack
   - idna
-  - lex/httplex
   - internal/timeseries
+  - lex/httplex
+  - trace
 - name: golang.org/x/oauth2
   version: 314dd2c0bf3ebd592ec0d20847d27e79d0dbe8dd
   subpackages:
@@ -80,50 +95,52 @@ imports:
 - name: google.golang.org/api
   version: 55146ba61254fdb1c26d65ff3c04bc1611ad73fb
   subpackages:
-  - option
+  - gensupport
   - googleapi
+  - googleapi/internal/uritemplates
+  - googleapi/transport
+  - internal
   - iterator
+  - option
   - storage/v1
   - transport
-  - internal
-  - googleapi/internal/uritemplates
-  - gensupport
-  - googleapi/transport
 - name: google.golang.org/appengine
   version: 08a149cfaee099e6ce4be01c0113a78c85ee1dee
   subpackages:
   - datastore
   - internal
-  - internal/datastore
-  - socket
-  - urlfetch
   - internal/app_identity
-  - internal/modules
   - internal/base
+  - internal/datastore
   - internal/log
+  - internal/memcache
+  - internal/modules
   - internal/remote_api
   - internal/socket
   - internal/urlfetch
+  - memcache
+  - socket
+  - urlfetch
 - name: google.golang.org/grpc
-  version: 9d682f9293b408c42d17c587d0e2a31237ac3f10
+  version: c8105071640ef29fce843ed96983e864bb18eb0e
   subpackages:
   - codes
   - credentials
   - credentials/oauth
-  - naming
   - grpclog
   - internal
   - metadata
+  - naming
+  - peer
   - stats
   - tap
   - transport
-  - peer
 - name: gopkg.in/go-redis/cache.v5
   version: 2766414f72791c8b0fa60409aa6e27867e9ad0c1
   subpackages:
   - lrucache
 - name: gopkg.in/redis.v5
-  version: 5e76db680467ebce5495cc2159a9289a6851d773
+  version: b9cc17bae020d9c1f467ca0f27d7706c1683c370
   subpackages:
   - internal
   - internal/consistenthash
@@ -131,7 +148,11 @@ imports:
   - internal/pool
   - internal/proto
 - name: gopkg.in/vmihailenco/msgpack.v2
-  version: 94af6ea04d2da6a09d6914ca79b8fb94f3acbba4
+  version: a1382b1ce0c749733b814157c245e02cc1f41076
   subpackages:
   - codes
-devImports: []
+testImports:
+- name: github.com/pmezard/go-difflib
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  subpackages:
+  - difflib

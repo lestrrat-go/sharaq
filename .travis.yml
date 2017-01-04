@@ -5,12 +5,14 @@ go:
 services:
   - redis-server
 env:
-  - CACHE=redis
-  - CACHE=memcache
+  - GAE=.go_appengine
+  - GAE=
 cache:
   directories:
     - vendor
     - glide-$(go version | awk '{ print $NF }' | tr '/' '-')
+    - .download
+    - .go_appengine
 install:
   - make installdeps
 script:

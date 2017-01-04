@@ -4,68 +4,71 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"log"
-	"net"
-	"os"
-	"os/signal"
-	"sync"
-	"syscall"
+	"net/http"
+	"net/url"
+	"regexp"
+	"strings"
 	"time"
 
-	"github.com/lestrrat/go-server-starter/listener"
 	"github.com/lestrrat/sharaq/aws"
 	"github.com/lestrrat/sharaq/fs"
 	"github.com/lestrrat/sharaq/gcp"
+	"github.com/lestrrat/sharaq/internal/errors"
+	"github.com/lestrrat/sharaq/internal/log"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
-	"github.com/pkg/errors"
+	"github.com/lestrrat/sharaq/internal/util"
+	"golang.org/x/net/context"
 )
 
-type LogConfig struct {
-	LogFile      string
-	LinkName     string
-	RotationTime time.Duration
-	MaxAge       time.Duration
-	Offset       time.Duration
-}
+func NewServer(c *Config) (*Server, error) {
+	// Just so that we don't barf...
+	if c == nil {
+		c = &Config{}
+	}
 
-type DispatcherConfig struct {
-	Listen    string     // listen on this address. default is 0.0.0.0:9090
-	AccessLog *LogConfig // dispatcher log. if nil, logs to stderr
-}
-
-type GuardianConfig struct {
-	Listen    string     // listen on this address. default is 0.0.0.0:9191
-	AccessLog *LogConfig // dispatcher log. if nil, logs to stderr
-}
-
-type BackendConfig struct {
-	Amazon     aws.Config // AWS specific config
-	Type       string     // "aws" or "gcp" ("fs" for local debugging)
-	FileSystem fs.Config  // File system specific config
-	Google     gcp.Config // Google specific config
-}
-
-type Config struct {
-	filename   string
-	Backend    BackendConfig
-	Debug      bool
-	Dispatcher DispatcherConfig
-	Guardian   GuardianConfig
-	Presets    map[string]string
-	URLCache   *urlcache.Config
-	Whitelist  []string
-}
-
-func NewServer(c *Config) *Server {
 	s := &Server{
 		config: c,
 	}
-	if s.config.Debug {
+
+	if len(c.Tokens) > 0 {
+		s.tokens = make(map[string]struct{})
+		for _, tok := range c.Tokens {
+			// Don't allow empty tokens
+			tok = strings.TrimSpace(tok)
+			if len(tok) > 0 {
+				s.tokens[tok] = struct{}{}
+			}
+		}
+	}
+
+	s.whitelist = make([]*regexp.Regexp, len(c.Whitelist))
+	for i, pat := range c.Whitelist {
+		re, err := regexp.Compile(pat)
+		if err != nil {
+			return nil, err
+		}
+		s.whitelist[i] = re
+	}
+	if c.Debug {
 		s.dumpConfig()
 	}
-	return s
+
+	return s, nil
+}
+
+func (s *Server) Initialize() error {
+	var err error
+	s.cache, err = urlcache.New(s.config.URLCache)
+	if err != nil {
+		return errors.Wrap(err, `failed to create urlcache`)
+	}
+	s.transformer = transformer.New()
+
+	if err := s.newBackend(); err != nil {
+		return errors.Wrap(err, `failed to create storage backend`)
+	}
+	return nil
 }
 
 func (s *Server) dumpConfig() {
@@ -74,10 +77,11 @@ func (s *Server) dumpConfig() {
 		return
 	}
 
+	ctx := context.Background()
 	scanner := bufio.NewScanner(bytes.NewBuffer(j))
 	for scanner.Scan() {
 		l := scanner.Text()
-		log.Print(l)
+		log.Debugf(ctx, l)
 	}
 }
 
@@ -105,151 +109,198 @@ func (s *Server) newBackend() error {
 			return errors.Wrap(err, `failed to create gcp backend`)
 		}
 		s.backend = b
+	case "fs":
+		b, err := fs.NewBackend(
+			&s.config.Backend.FileSystem,
+			s.cache,
+			s.transformer,
+			s.config.Presets,
+		)
+		if err != nil {
+			return errors.Wrap(err, `failed to create file system backend`)
+		}
+		s.backend = b
 	default:
 		return errors.Errorf(`invalid storage backend %s`, s.config.Backend.Type)
 	}
 	return nil
 }
 
-func (s *Server) Run() error {
-	/*
-		if el := s.config.ErrorLog(); el != nil {
-			elh := rotatelogs.New(
-				el.LogFile,
-				rotatelogs.WithLinkName(el.LinkName),
-				rotatelogs.WithMaxAge(el.MaxAge),
-				rotatelogs.WithRotationTime(el.RotationTime),
-			)
-			log.SetOutput(elh)
-		}
-	*/
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
-	defer signal.Stop(sigCh)
-
-	termLoopCh := make(chan struct{}, 1) // we keep restarting as long as there are no messages on this channel
-
-	var err error
-LOOP:
-	for {
-		select {
-		case <-termLoopCh:
-			break LOOP
-		default:
-			// no op, but required to not block on the above case
-		}
-
-		s.cache, err = urlcache.New(s.config.URLCache)
-		if err != nil {
-			return errors.Wrap(err, `failed to create urlcache`)
-		}
-		s.transformer = transformer.New()
-
-		if err := s.newBackend(); err != nil {
-			return errors.Wrap(err, `failed to create storage backend`)
-		}
-
-		g, err := NewGuardian(s)
-		if err != nil {
-			return err
-		}
-
-		d, err := NewDispatcher(s, g)
-		if err != nil {
-			return err
-		}
-
-		exitCond := sync.NewCond(&sync.RWMutex{})
-		go func(c *sync.Cond) {
-			sig := <-sigCh
-			c.Broadcast()
-
-			switch sig {
-			case syscall.SIGHUP:
-				log.Printf("Reload request received. Shutting down for reload...")
-				newConfig := &Config{}
-				if err := newConfig.ParseFile(s.config.filename); err != nil {
-					log.Printf("Failed to reload config file %s: %s", s.config.filename, err)
-				} else {
-					s.config = newConfig
-					if s.config.Debug {
-						s.dumpConfig()
-					}
-				}
-			default:
-				log.Printf("Termination request received. Shutting down...")
-				close(termLoopCh)
-			}
-		}(exitCond)
-
-		wg := &sync.WaitGroup{}
-		wg.Add(2)
-
-		go g.Run(wg, exitCond)
-		go d.Run(wg, exitCond)
-
-		wg.Wait()
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/favicon.ico" {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
 	}
 
+	switch r.Method {
+	case "GET":
+		s.handleFetch(w, r)
+	case "POST":
+		s.handleStore(w, r)
+	case "DELETE":
+		s.handleDelete(w, r)
+	default:
+		http.Error(w, "What, what, what?", http.StatusBadRequest)
+	}
+}
+
+func (s *Server) allowedTarget(u *url.URL) bool {
+	if len(s.whitelist) == 0 {
+		return true
+	}
+
+	for _, pat := range s.whitelist {
+		if pat.MatchString(u.String()) {
+			return true
+		}
+	}
+	return false
+}
+
+// handleFetch replies with the proper URL of the image
+func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
+	ctx := util.RequestCtx(r)
+
+	u, err := util.GetTargetURL(r)
+	if err != nil {
+		log.Debugf(ctx, "Bad url: %s", err)
+		http.Error(w, "Bad url", http.StatusBadRequest)
+		return
+	}
+
+	if !s.allowedTarget(u) {
+		http.Error(w, "Specified url not allowed", http.StatusForbidden)
+		return
+	}
+
+	preset, err := util.GetPresetFromRequest(r)
+	if err != nil {
+		log.Debugf(ctx, "Bad preset: %s", err)
+		http.Error(w, "Bad preset", http.StatusBadRequest)
+		return
+	}
+
+	content, err := s.backend.Get(ctx, u, preset)
+	if err == nil {
+		content.ServeHTTP(w, r)
+		return
+	}
+
+	if !errors.IsTransformationRequired(err) {
+		log.Debugf(ctx, "failed to serve from backend: %s", err)
+		http.Error(w, "Internal server error", 500)
+		return
+	}
+
+	if err := s.deferedTransformAndStore(ctx, u); err != nil {
+		log.Debugf(ctx, "failed to transform content: %s", err)
+		http.Error(w, "Internal server error", 500)
+		return
+	}
+
+	// Serve the original file, just so that we don't return an error
+	log.Debugf(ctx, "Fallback to serving original content at %s", u)
+	w.Header().Add("Location", u.String())
+	w.WriteHeader(http.StatusFound)
+
+	return
+}
+
+func (s *Server) markProcessing(ctx context.Context, u *url.URL) error {
+	cacheKey := urlcache.MakeCacheKey("processing", u.String())
+	return errors.Wrap(
+		s.cache.SetNX(ctx, cacheKey, "XXX", urlcache.WithExpires(5*time.Second)),
+		`failed to set cache`,
+	)
+}
+
+func (s *Server) unmarkProcessing(ctx context.Context, u *url.URL) error {
+	cacheKey := urlcache.MakeCacheKey("processing", u.String())
+	return errors.Wrap(
+		s.cache.Delete(ctx, cacheKey),
+		`failed to delete cache`,
+	)
+}
+
+// handleStore accepts POST requests to create resized images and
+// store them in the backend. This only exists so that you may perform
+// repairs for existing images: normally the GET method automatically
+// fetches and creates the resized images
+func (s *Server) handleStore(w http.ResponseWriter, r *http.Request) {
+	if !s.authorized(r) {
+		http.Error(w, `not authorized`, http.StatusForbidden)
+		return
+	}
+
+	u, err := util.GetTargetURL(r)
+	if err != nil {
+		http.Error(w, `url parameter missing`, http.StatusBadRequest)
+		return
+	}
+
+	ctx := util.RequestCtx(r)
+	if err := s.transformAndStore(ctx, u); err != nil {
+		log.Debugf(ctx, "Error detected while processing: %s", err)
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) transformAndStore(ctx context.Context, u *url.URL) error {
+	// Don't process the same url while somebody else is processing it
+	if err := s.markProcessing(ctx, u); err != nil {
+		return errors.Wrap(err, `failed to mark processing flag`)
+	}
+	defer s.unmarkProcessing(ctx, u)
+
+	if err := s.backend.StoreTransformedContent(ctx, u); err != nil {
+		return errors.Wrap(err, `failed to process content`)
+	}
 	return nil
 }
 
-// start_server support utility
-func makeListener(listenAddr string) (net.Listener, error) {
-	var ln net.Listener
-	if listener.GetPortsSpecification() == "" {
-		l, err := net.Listen("tcp", listenAddr)
-		if err != nil {
-			return nil, fmt.Errorf("error listening on %s: %s", listenAddr, err)
-		}
-		ln = l
-	} else {
-		ts, err := listener.Ports()
-		if err != nil {
-			return nil, fmt.Errorf("error parsing start_server ports: %s", err)
-		}
-
-		for _, t := range ts {
-			switch t.(type) {
-			case listener.TCPListener:
-				tl := t.(listener.TCPListener)
-				if listenAddr == fmt.Sprintf("%s:%d", tl.Addr, tl.Port) {
-					ln, err = t.Listen()
-					if err != nil {
-						return nil, fmt.Errorf("failed to listen to start_server port: %s", err)
-					}
-					break
-				}
-			case listener.UnixListener:
-				ul := t.(listener.UnixListener)
-				if listenAddr == ul.Path {
-					ln, err = t.Listen()
-					if err != nil {
-						return nil, fmt.Errorf("failed to listen to start_server port: %s", err)
-					}
-					break
-				}
-			}
-		}
-
-		if ln == nil {
-			return nil, fmt.Errorf("could not find a matching listen addr between server_starter and DispatcherAddr")
-		}
-	}
-	return ln, nil
-}
-
-// This is used in HTTP handlers to mimic+work like http.Server
-type tcpKeepAliveListener struct {
-	*net.TCPListener
-}
-
-func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
-	tc, err := ln.AcceptTCP()
-	if err != nil {
+// handleDelete accepts DELETE requests to delete all known resized images
+func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
+	if !s.authorized(r) {
+		http.Error(w, `not authorized`, http.StatusForbidden)
 		return
 	}
-	tc.SetKeepAlive(true)
-	tc.SetKeepAlivePeriod(3 * time.Minute)
-	return tc, nil
+
+	u, err := util.GetTargetURL(r)
+	if err != nil {
+		http.Error(w, `url parameter missing`, http.StatusBadRequest)
+		return
+	}
+
+	ctx := util.RequestCtx(r)
+
+	// Don't process the same url while somebody else is processing it
+	if err := s.markProcessing(ctx, u); err != nil {
+		http.Error(w, "url is being processed", 500)
+		return
+	}
+	defer s.unmarkProcessing(ctx, u)
+
+	if err := s.backend.Delete(ctx, u); err != nil {
+		log.Debugf(ctx, "Error detected while processing: %s", err)
+		http.Error(w, err.Error(), 500)
+		return
+	}
+
+	// w.Header().Add("X-Sharaq-Elapsed-Time", fmt.Sprintf("%0.2f", time.Since(start).Seconds()))
+}
+
+func (s *Server) authorized(r *http.Request) bool {
+	if r.Header.Get("X-Appengine-Taskname") != "" {
+		// Trust inbound taskqueue requests
+		return true
+	}
+
+	// Must have token in header
+	// XXX Allow tokens in database
+	tok := r.Header.Get("Sharaq-Token")
+	_, ok := s.tokens[tok]
+	return ok
 }

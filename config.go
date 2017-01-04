@@ -31,22 +31,19 @@ func (c *Config) Parse(rdr io.Reader) error {
 		return fmt.Errorf("error: Presets is empty")
 	}
 
-	if c.Dispatcher.Listen == "" {
-		c.Dispatcher.Listen = "0.0.0.0:9090"
-	}
-	if c.Guardian.Listen == "" {
-		c.Guardian.Listen = "0.0.0.0:9191"
+	if c.Listen == "" {
+		c.Listen = "0.0.0.0:9090"
 	}
 
 	if c.URLCache == nil {
 		c.URLCache = &urlcache.Config{}
 	}
 
-	if c.URLCache.BackendType == "" {
-		c.URLCache.BackendType = "Redis"
+	if c.URLCache.Type == "" {
+		c.URLCache.Type = "Redis"
 	}
 
-	switch c.URLCache.BackendType {
+	switch c.URLCache.Type {
 	case "Redis":
 		if len(c.URLCache.Redis.Addr) < 1 {
 			c.URLCache.Redis.Addr = []string{"127.0.0.1:6379"}
@@ -58,12 +55,8 @@ func (c *Config) Parse(rdr io.Reader) error {
 	}
 
 	// Normalize shorthand form to full form
-	if l := c.Dispatcher.Listen; l[0] == ':' {
-		c.Dispatcher.Listen = "0.0.0.0" + l
-	}
-
-	if l := c.Guardian.Listen; l[0] == ':' {
-		c.Guardian.Listen = "0.0.0.0" + l
+	if l := c.Listen; l[0] == ':' {
+		c.Listen = "0.0.0.0" + l
 	}
 
 	applyLogDefaults := func(c *LogConfig) {
@@ -81,11 +74,8 @@ func (c *Config) Parse(rdr io.Reader) error {
 			applyLogDefaults(c.ErrorLog)
 		}
 	*/
-	if c.Dispatcher.AccessLog != nil {
-		applyLogDefaults(c.Dispatcher.AccessLog)
-	}
-	if c.Guardian.AccessLog != nil {
-		applyLogDefaults(c.Guardian.AccessLog)
+	if c.AccessLog != nil {
+		applyLogDefaults(c.AccessLog)
 	}
 
 	return nil
