@@ -14,6 +14,7 @@ import (
 	"github.com/lestrrat/sharaq/aws"
 	"github.com/lestrrat/sharaq/fs"
 	"github.com/lestrrat/sharaq/gcp"
+	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"
 	"github.com/pkg/errors"
@@ -52,7 +53,22 @@ func NewServer(c *Config) (*Server, error) {
 	if c.Debug {
 		s.dumpConfig()
 	}
+
 	return s, nil
+}
+
+func (s *Server) Initialize() error {
+	var err error
+	s.cache, err = urlcache.New(s.config.URLCache)
+	if err != nil {
+		return errors.Wrap(err, `failed to create urlcache`)
+	}
+	s.transformer = transformer.New()
+
+	if err := s.newBackend(); err != nil {
+		return errors.Wrap(err, `failed to create storage backend`)
+	}
+	return nil
 }
 
 func (s *Server) dumpConfig() {

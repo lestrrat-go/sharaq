@@ -19,5 +19,10 @@ func init() {
 	if err != nil {
 		panic(err.Error())
 	}
+
+	if err := s.Initialize(); err != nil {
+		panic(err.Error())
+	}
+
 	http.Handle("/", s)
 }

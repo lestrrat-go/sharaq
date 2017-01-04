@@ -39,11 +39,11 @@ func (c *Config) Parse(rdr io.Reader) error {
 		c.URLCache = &urlcache.Config{}
 	}
 
-	if c.URLCache.BackendType == "" {
-		c.URLCache.BackendType = "Redis"
+	if c.URLCache.Type == "" {
+		c.URLCache.Type = "Redis"
 	}
 
-	switch c.URLCache.BackendType {
+	switch c.URLCache.Type {
 	case "Redis":
 		if len(c.URLCache.Redis.Addr) < 1 {
 			c.URLCache.Redis.Addr = []string{"127.0.0.1:6379"}

@@ -25,20 +25,24 @@ type URLCache struct {
 }
 
 type Config struct {
-	BackendType string
-	Memcached   cache.MemcacheConfig
-	Redis       cache.RedisConfig
-	Expires     int32
+	Type      string
+	Memcached cache.MemcacheConfig
+	Redis     cache.RedisConfig
+	Expires   int32
 }
 
 func New(c *Config) (*URLCache, error) {
-	switch c.BackendType {
+	if c == nil {
+		c = &Config{}
+	}
+
+	switch c.Type {
 	case "Redis":
 		return newRedis(c)
 	case "Memcached":
 		return newMemcached(c)
 	default:
-		return nil, errors.Errorf(`urlcache: unknown backend type "%s"`, c.BackendType)
+		return nil, errors.Errorf(`urlcache: unknown backend type "%s"`, c.Type)
 	}
 }
 

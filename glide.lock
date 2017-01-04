@@ -1,5 +1,5 @@
 hash: f26bf5a7be90bb9b25e476f603dfc760bc1bc764959366fea4311a9539d3e194
-updated: 2017-01-04T13:25:11.131076253+09:00
+updated: 2017-01-04T15:12:32.082529586+09:00
 imports:
 - name: cloud.google.com/go
   version: fa261437944009fe81aa841d9976710d5235a3a7
@@ -13,15 +13,15 @@ imports:
   subpackages:
   - memcache
 - name: github.com/davecgh/go-spew
-  version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
+  version: 346938d642f2ec3594ed81d874461961cd0faa76
   subpackages:
   - spew
 - name: github.com/disintegration/imaging
-  version: 7cbe056568779e3d987cd1b5e3dbe12c4f79f1ff
+  version: 243d2d8673c1225a6afceeb9b3b4423d485dc8df
 - name: github.com/fatih/camelcase
   version: f6a740d52f961c60348ebb109adde9f4635d7540
 - name: github.com/goamz/goamz
-  version: fb002ae75f50beb93874fa6ce2c861e488ce08a0
+  version: b2c2eaf25cbb87f41087aa796facf82113809ed5
   subpackages:
   - aws
   - s3
@@ -36,7 +36,7 @@ imports:
 - name: github.com/lestrrat/go-bufferpool
   version: a1a4a9cf09b4f3e6d263ba25cf09de3276e1d589
 - name: github.com/lestrrat/go-config
-  version: 0de765e4e60dd616afabfe7fd11d502dbd7594aa
+  version: cbc537214dbdde35e3b3d57bcc3492f940856a72
   subpackages:
   - env
   - env/internal/structtag
@@ -47,7 +47,7 @@ imports:
 - name: github.com/lestrrat/go-pdebug
   version: 2e6eaaa5717f81bda41d27070d3c966f40a1e75f
 - name: github.com/lestrrat/go-server-starter
-  version: f9749b3a958c4aaa5c455e6a263953ebefb254b6
+  version: f9cb0b066498d26a90fd918fe265adbb0ea02bcf
   subpackages:
   - listener
 - name: github.com/lestrrat/go-strftime
@@ -55,7 +55,7 @@ imports:
 - name: github.com/pkg/errors
   version: 248dadf4e9068a0b3e79f02ed0a610d935de5302
 - name: github.com/stretchr/testify
-  version: 976c720a22c8eb4eb6a0b4348ad85ad12491a506
+  version: 2402e8e7a02fc811447d11f881aa9746cdc57983
   subpackages:
   - assert
 - name: github.com/vaughan0/go-ini
@@ -65,13 +65,13 @@ imports:
   subpackages:
   - syncutil/singleflight
 - name: golang.org/x/image
-  version: f1b1ff53e10e288d0ab6f161067c0a69b72cee28
+  version: 3ba119400e6fd98bf5100d1c17303c377b6521e9
   subpackages:
   - bmp
   - tiff
   - tiff/lzw
 - name: golang.org/x/net
-  version: 45e771701b814666a7eb299e6c7a57d0b1799e91
+  version: 69d4b8aa71caaaa75c3dfc11211d1be495abec7c
   subpackages:
   - context
   - context/ctxhttp
@@ -140,7 +140,7 @@ imports:
   subpackages:
   - lrucache
 - name: gopkg.in/redis.v5
-  version: 5e76db680467ebce5495cc2159a9289a6851d773
+  version: b9cc17bae020d9c1f467ca0f27d7706c1683c370
   subpackages:
   - internal
   - internal/consistenthash
@@ -148,7 +148,7 @@ imports:
   - internal/pool
   - internal/proto
 - name: gopkg.in/vmihailenco/msgpack.v2
-  version: 94af6ea04d2da6a09d6914ca79b8fb94f3acbba4
+  version: a1382b1ce0c749733b814157c245e02cc1f41076
   subpackages:
   - codes
 testImports:

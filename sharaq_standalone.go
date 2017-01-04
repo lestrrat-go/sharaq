@@ -16,8 +16,6 @@ import (
 	apachelog "github.com/lestrrat/go-apache-logformat"
 	rotatelogs "github.com/lestrrat/go-file-rotatelogs"
 	"github.com/lestrrat/go-server-starter/listener"
-	"github.com/lestrrat/sharaq/internal/transformer"
-	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
@@ -55,15 +53,8 @@ func (s *Server) loopOnce(ctx context.Context, termLoopCh chan struct{}, sigCh c
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	var err error
-	s.cache, err = urlcache.New(s.config.URLCache)
-	if err != nil {
-		return errors.Wrap(err, `failed to create urlcache`)
-	}
-	s.transformer = transformer.New()
-
-	if err := s.newBackend(); err != nil {
-		return errors.Wrap(err, `failed to create storage backend`)
+	if err := s.Initialize(); err != nil {
+		return errors.Wrap(err, `initilization failed`)
 	}
 
 	done := make(chan error)
