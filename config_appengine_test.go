@@ -19,6 +19,7 @@ func TestConfig(t *testing.T) {
 	os.Setenv("SHARAQ_BACKEND_TYPE", "gcp")
 	os.Setenv("SHARAQ_BACKEND_GCP_BUCKET_NAME", "media")
 	os.Setenv("SHARAQ_PRESETS", "small-square=200x200,medium-square=400x400,large-square=600x600")
+	os.Setenv("SHARAQ_TOKENS", "token1,token2,token3")
 
 	var c Config
 	if !assert.NoError(t, env.NewDecoder(env.System).Prefix("SHARAQ").Decode(&c), "Decode should succeed") {
@@ -26,6 +27,7 @@ func TestConfig(t *testing.T) {
 	}
 
 	var expected = Config{
+		Tokens: []string{"token1", "token2", "token3"},
 		Presets: map[string]string{
 			"small-square":  "200x200",
 			"medium-square": "400x400",
