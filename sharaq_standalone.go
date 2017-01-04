@@ -23,17 +23,10 @@ import (
 )
 
 func (s *Server) Run(ctx context.Context) error {
-	/*
-		if el := s.config.ErrorLog(); el != nil {
-			elh := rotatelogs.New(
-				el.LogFile,
-				rotatelogs.WithLinkName(el.LinkName),
-				rotatelogs.WithMaxAge(el.MaxAge),
-				rotatelogs.WithRotationTime(el.RotationTime),
-			)
-			log.SetOutput(elh)
-		}
-	*/
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	log.Printf("Starting server %d", os.Getpid())
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	defer signal.Stop(sigCh)
@@ -44,6 +37,7 @@ LOOP:
 	for {
 		select {
 		case <-termLoopCh:
+			cancel()
 			break LOOP
 		default:
 			// no op, but required to not block on the above case
@@ -203,6 +197,7 @@ func (s *Server) serve(ctx context.Context, done chan error) {
 		Addr:    s.config.Listen,
 		Handler: apachelog.CombinedLog.Wrap(s, output),
 	}
+
 	ln, err := makeListener(s.config.Listen)
 	if err != nil {
 		log.Printf("Error binding to listen address: %s", err)
@@ -213,5 +208,10 @@ func (s *Server) serve(ctx context.Context, done chan error) {
 	defer ln.Close()
 
 	log.Printf("Dispatcher listening on %s", s.config.Listen)
-	srv.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)})
+	go srv.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)})
+
+	select {
+	case <-ctx.Done():
+		ln.Close()
+	}
 }

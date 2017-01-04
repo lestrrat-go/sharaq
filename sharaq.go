@@ -110,6 +110,11 @@ func (s *Server) newBackend() error {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/favicon.ico" {
+		http.Error(w, "Not Found", http.StatusNotFound)
+		return
+	}
+
 	switch r.Method {
 	case "GET":
 		s.handleFetch(w, r)
@@ -118,7 +123,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "DELETE":
 		s.handleDelete(w, r)
 	default:
-		http.Error(w, "What, what, what?", 400)
+		http.Error(w, "What, what, what?", http.StatusBadRequest)
 	}
 }
 
