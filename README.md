@@ -45,7 +45,7 @@ See also: https://github.com/lestrrat/go-apache-logformat
 {
   "AccessLog": {
     "LogFile": "/path/to/logfile",
-    "LinkName": "/path/to/linkname.%Y%m%d"
+    "LinkName": "/path/to/linkname.%Y%m%d",
     "RotationTime": 86400,
     "MaxAge": 172800,
   }
