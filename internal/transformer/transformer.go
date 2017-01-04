@@ -24,13 +24,10 @@ import (
 
 // Transformer is based on imageproxy by Will Norris. Code was shamelessly
 // stolen from there.
-type Transformer struct {
-	client *http.Client // client used to fetch remote URLs
-}
+type Transformer struct {}
 
 type TransformingTransport struct {
 	transport http.RoundTripper
-	client    *http.Client
 }
 
 type Result struct {
@@ -40,25 +37,20 @@ type Result struct {
 }
 
 func New() *Transformer {
-	client := &http.Client{}
-	client.Transport = &TransformingTransport{
-		transport: http.DefaultTransport,
-		client:    client,
-	}
-	return &Transformer{
-		client: client,
-	}
+	return &Transformer{}
 }
 
 // Transform takes a string that specifies the transformation,
 // the url of the target, and populates the given result object
 // if transformation was successful
-func (t *Transformer) Transform(options string, u string, result *Result) error {
+func (t *Transformer) Transform(ctx context.Context, options string, u string, result *Result) error {
 	if opts := ParseOptions(options); opts != emptyOptions {
 		u += "#" + opts.String()
 	}
 
-	res, err := t.client.Get(u)
+	// Create a client here (this could be different for appengine)
+	cl := newClient(ctx)
+	res, err := cl.Get(u)
 	if err != nil {
 		return errors.Wrap(err, `failed to fetch remote image`)
 	}
@@ -86,7 +78,11 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 
 	u := *req.URL
 	u.Fragment = ""
-	resp, err := t.client.Get(u.String())
+
+	cl := http.Client{
+		Transport: t.transport,
+	}
+	resp, err := cl.Get(u.String())
 	if err != nil {
 		return nil, err
 	}

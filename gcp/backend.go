@@ -114,7 +114,7 @@ func (s *StorageBackend) StoreTransformedContent(ctx context.Context, u *url.URL
 			var res transformer.Result
 			res.Content = buf
 
-			err := t.Transform(rule, u.String(), &res)
+			err := t.Transform(ctx, rule, u.String(), &res)
 			if err != nil {
 				return errors.Wrap(err, `failed to transform image`)
 			}

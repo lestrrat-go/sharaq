@@ -93,7 +93,7 @@ func (s *S3Backend) StoreTransformedContent(ctx context.Context, u *url.URL) err
 			var res transformer.Result
 			res.Content = buf
 
-			if err := t.Transform(rule, u.String(), &res); err != nil {
+			if err := t.Transform(ctx, rule, u.String(), &res); err != nil {
 				return errors.Wrap(err, `failed to transform image`)
 			}
 

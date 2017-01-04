@@ -89,7 +89,7 @@ func (f *Backend) StoreTransformedContent(ctx context.Context, u *url.URL) error
 			res.Content = buf
 
 			log.Debugf(ctx, "Backend: applying transformation %s (%s)...", preset, rule)
-			if err := t.Transform(rule, u.String(), &res); err != nil {
+			if err := t.Transform(ctx, rule, u.String(), &res); err != nil {
 				return errors.Wrap(err, `failed to transform`)
 			}
 

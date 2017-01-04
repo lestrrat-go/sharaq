@@ -293,6 +293,11 @@ func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) authorized(r *http.Request) bool {
+	if r.Header.Get("X-Appengine-Request-Log-Id") != "" {
+		// Trust inbound taskqueue requests
+		return true
+	}
+
 	// Must have token in header
 	// XXX Allow tokens in database
 	tok := r.Header.Get("Sharaq-Token")
