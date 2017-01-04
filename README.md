@@ -44,12 +44,13 @@ See also: https://github.com/lestrrat/go-apache-logformat
 ```json
 {
   "AccessLog": {
-    "LogFile      string
-	LinkName     string
-	RotationTime time.Duration
-	MaxAge       time.Duration
-	Offset       time.Duration
-
+    "LogFile": "/path/to/logfile",
+    "LinkName": "/path/to/linkname.%Y%m%d"
+    "RotationTime": 86400,
+    "MaxAge": 172800,
+  }
+}
+```
 
 ## AWS (S3) Backend
 
