@@ -50,7 +50,7 @@ LOOP:
 		}
 
 		if err := s.loopOnce(ctx, termLoopCh, sigCh); err != nil {
-			log.Printf("error during loop, exiting")
+			log.Printf("error during loop, exiting: %s", err)
 			break LOOP
 		}
 	}
@@ -200,10 +200,10 @@ func (s *Server) serve(ctx context.Context, done chan error) {
 		log.Printf("Dispatcher logging to %s", dl.LogFile)
 	}
 	srv := &http.Server{
-		Addr:    s.listenAddr,
+		Addr:    s.config.Listen,
 		Handler: apachelog.CombinedLog.Wrap(s, output),
 	}
-	ln, err := makeListener(s.listenAddr)
+	ln, err := makeListener(s.config.Listen)
 	if err != nil {
 		log.Printf("Error binding to listen address: %s", err)
 		done <- errors.Wrap(err, `binding to listen address failed`)
@@ -212,6 +212,6 @@ func (s *Server) serve(ctx context.Context, done chan error) {
 
 	defer ln.Close()
 
-	log.Printf("Dispatcher listening on %s", s.listenAddr)
+	log.Printf("Dispatcher listening on %s", s.config.Listen)
 	srv.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)})
 }

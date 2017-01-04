@@ -19,7 +19,6 @@ type Server struct {
 	config      *Config
 	cache       *urlcache.URLCache
 	bucketName  string
-	listenAddr  string
 	logConfig   *LogConfig
 	tokens      map[string]struct{} // tokens required to accept administrative requests
 	transformer *transformer.Transformer

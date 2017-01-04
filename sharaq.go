@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/lestrrat/sharaq/aws"
+	"github.com/lestrrat/sharaq/fs"
 	"github.com/lestrrat/sharaq/gcp"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"
@@ -89,6 +90,17 @@ func (s *Server) newBackend() error {
 		)
 		if err != nil {
 			return errors.Wrap(err, `failed to create gcp backend`)
+		}
+		s.backend = b
+	case "fs":
+		b, err := fs.NewBackend(
+			&s.config.Backend.FileSystem,
+			s.cache,
+			s.transformer,
+			s.config.Presets,
+		)
+		if err != nil {
+			return errors.Wrap(err, `failed to create file system backend`)
 		}
 		s.backend = b
 	default:
