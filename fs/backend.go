@@ -2,7 +2,6 @@ package fs
 
 import (
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,6 +12,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/lestrrat/sharaq/internal/bbpool"
+	"github.com/lestrrat/sharaq/internal/log"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"
@@ -32,7 +32,7 @@ func NewBackend(c *Config, cache *urlcache.URLCache, trans *transformer.Transfor
 	if root == "" {
 		return nil, errors.New("fs backend: 'Root' is required")
 	}
-	log.Printf("Backend: storing files under %s", root)
+	log.Debugf(context.Background(), "Backend: storing files under %s", root)
 	return &Backend{
 		root:        root,
 		cache:       cache,
@@ -49,23 +49,24 @@ func (f *Backend) EncodeFilename(preset string, urlstr string) string {
 }
 
 func (f *Backend) Serve(w http.ResponseWriter, r *http.Request) {
+	ctx := util.RequestCtx(r)
 	u, err := util.GetTargetURL(r)
 	if err != nil {
-		log.Printf("Bad url: %s", err)
+		log.Debugf(ctx, "Bad url: %s", err)
 		http.Error(w, "Bad url", 500)
 		return
 	}
 
 	preset, err := util.GetPresetFromRequest(r)
 	if err != nil {
-		log.Printf("Bad preset: %s", err)
+		log.Debugf(ctx, "Bad preset: %s", err)
 		http.Error(w, "Bad preset", 500)
 		return
 	}
 
 	cacheKey := urlcache.MakeCacheKey("fs", preset, u.String())
-	if cachedFile := f.cache.Lookup(util.RequestCtx(r), cacheKey); cachedFile != "" {
-		log.Printf("Cached entry found for %s:%s -> %s", preset, u.String(), cachedFile)
+	if cachedFile := f.cache.Lookup(ctx, cacheKey); cachedFile != "" {
+		log.Debugf(ctx, "Cached entry found for %s:%s -> %s", preset, u.String(), cachedFile)
 		http.ServeFile(w, r, cachedFile)
 		return
 	}
@@ -73,7 +74,7 @@ func (f *Backend) Serve(w http.ResponseWriter, r *http.Request) {
 	path := f.EncodeFilename(preset, u.String())
 	if _, err := os.Stat(path); err == nil {
 		// HIT. Serve this guy after filling the cache
-		f.cache.Set(util.RequestCtx(r), cacheKey, path)
+		f.cache.Set(ctx, cacheKey, path)
 		http.ServeFile(w, r, path)
 		return
 	}
@@ -86,7 +87,7 @@ func (f *Backend) Serve(w http.ResponseWriter, r *http.Request) {
 		defer cancel()
 
 		if err := f.StoreTransformedContent(ctx, u); err != nil {
-			log.Printf("Backend: transformation failed: %s", err)
+			log.Debugf(ctx, "Backend: transformation failed: %s", err)
 		}
 	}()
 
@@ -95,7 +96,7 @@ func (f *Backend) Serve(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f *Backend) StoreTransformedContent(ctx context.Context, u *url.URL) error {
-	log.Printf("Backend: transforming image at url %s", u)
+	log.Debugf(ctx, "Backend: transforming image at url %s", u)
 
 	var grp *errgroup.Group
 	grp, ctx = errgroup.WithContext(ctx)
@@ -111,13 +112,13 @@ func (f *Backend) StoreTransformedContent(ctx context.Context, u *url.URL) error
 			var res transformer.Result
 			res.Content = buf
 
-			log.Printf("Backend: applying transformation %s (%s)...", preset, rule)
+			log.Debugf(ctx, "Backend: applying transformation %s (%s)...", preset, rule)
 			if err := t.Transform(rule, u.String(), &res); err != nil {
 				return errors.Wrap(err, `failed to transform`)
 			}
 
 			path := f.EncodeFilename(preset, u.String())
-			log.Printf("Saving to %s...", path)
+			log.Debugf(ctx, "Saving to %s...", path)
 
 			dir := filepath.Dir(path)
 			if _, err := os.Stat(dir); err != nil {
@@ -152,7 +153,7 @@ func (f *Backend) Delete(ctx context.Context, u *url.URL) error {
 		preset := preset
 		grp.Go(func() error {
 			path := f.EncodeFilename(preset, u.String())
-			log.Printf(" + DELETE filesystem entry %s\n", path)
+			log.Debugf(ctx, " + DELETE filesystem entry %s\n", path)
 			if err := os.Remove(path); err != nil {
 				return errors.Wrapf(err, `failed to remove path %s`, path)
 			}

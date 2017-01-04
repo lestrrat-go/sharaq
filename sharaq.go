@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -14,6 +13,7 @@ import (
 	"github.com/lestrrat/sharaq/aws"
 	"github.com/lestrrat/sharaq/fs"
 	"github.com/lestrrat/sharaq/gcp"
+	"github.com/lestrrat/sharaq/internal/log"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"
@@ -42,13 +42,15 @@ func NewServer(c *Config) (*Server, error) {
 		}
 	}
 
-	whitelist := make([]*regexp.Regexp, len(c.Whitelist))
+	ctx := context.Background()
+	s.whitelist = make([]*regexp.Regexp, len(c.Whitelist))
 	for i, pat := range c.Whitelist {
+		log.Debugf(ctx, "whitelist = '%s'", pat)
 		re, err := regexp.Compile(pat)
 		if err != nil {
 			return nil, err
 		}
-		whitelist[i] = re
+		s.whitelist[i] = re
 	}
 	if c.Debug {
 		s.dumpConfig()
@@ -77,10 +79,11 @@ func (s *Server) dumpConfig() {
 		return
 	}
 
+	ctx := context.Background()
 	scanner := bufio.NewScanner(bytes.NewBuffer(j))
 	for scanner.Scan() {
 		l := scanner.Text()
-		log.Print(l)
+		log.Debugf(ctx, l)
 	}
 }
 
@@ -206,7 +209,7 @@ func (s *Server) handleStore(w http.ResponseWriter, r *http.Request) {
 	ctx := util.RequestCtx(r)
 	// Don't process the same url while somebody else is processing it
 	if err := s.markProcessing(ctx, u); err != nil {
-		log.Printf("URL '%s' is being processed", u.String())
+		log.Debugf(ctx, "URL '%s' is being processed", u.String())
 		http.Error(w, "url is being processed", 500)
 		return
 	}
@@ -214,7 +217,7 @@ func (s *Server) handleStore(w http.ResponseWriter, r *http.Request) {
 
 	// start := time.Now()
 	if err := s.backend.StoreTransformedContent(ctx, u); err != nil {
-		log.Printf("Error detected while processing: %s", err)
+		log.Debugf(ctx, "Error detected while processing: %s", err)
 		http.Error(w, err.Error(), 500)
 		return
 	}
@@ -246,7 +249,7 @@ func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
 	defer s.unmarkProcessing(ctx, u)
 
 	if err := s.backend.Delete(ctx, u); err != nil {
-		log.Printf("Error detected while processing: %s", err)
+		log.Debugf(ctx, "Error detected while processing: %s", err)
 		http.Error(w, err.Error(), 500)
 		return
 	}

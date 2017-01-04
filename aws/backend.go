@@ -2,7 +2,6 @@ package aws
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"sync"
@@ -12,6 +11,7 @@ import (
 	"github.com/goamz/goamz/aws"
 	"github.com/goamz/goamz/s3"
 	"github.com/lestrrat/sharaq/internal/bbpool"
+	"github.com/lestrrat/sharaq/internal/log"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"
@@ -42,23 +42,25 @@ func NewBackend(c *Config, cache *urlcache.URLCache, trans *transformer.Transfor
 }
 
 func (s *S3Backend) Serve(w http.ResponseWriter, r *http.Request) {
+	ctx := util.RequestCtx(r)
+
 	u, err := util.GetTargetURL(r)
 	if err != nil {
-		log.Printf("Bad url: %s", err)
+		log.Debugf(ctx, "Bad url: %s", err)
 		http.Error(w, "Bad url", 500)
 		return
 	}
 
 	preset, err := util.GetPresetFromRequest(r)
 	if err != nil {
-		log.Printf("Bad preset: %s", err)
+		log.Debugf(ctx, "Bad preset: %s", err)
 		http.Error(w, "Bad preset", 500)
 		return
 	}
 
 	cacheKey := urlcache.MakeCacheKey("s3", preset, u.String())
-	if cachedURL := s.cache.Lookup(util.RequestCtx(r), cacheKey); cachedURL != "" {
-		log.Printf("Cached entry found for %s:%s -> %s", preset, u.String(), cachedURL)
+	if cachedURL := s.cache.Lookup(ctx, cacheKey); cachedURL != "" {
+		log.Debugf(ctx, "Cached entry found for %s:%s -> %s", preset, u.String(), cachedURL)
 		w.Header().Add("Location", cachedURL)
 		w.WriteHeader(http.StatusMovedPermanently)
 		return
@@ -67,25 +69,30 @@ func (s *S3Backend) Serve(w http.ResponseWriter, r *http.Request) {
 	// create the proper url
 	specificURL := "http://" + s.bucketName + ".s3.amazonaws.com/" + preset + u.Path
 
-	log.Printf("Making HEAD request to %s...", specificURL)
+	log.Debugf(ctx, "Making HEAD request to %s...", specificURL)
 	res, err := http.Head(specificURL)
 	if err != nil {
-		log.Printf("Failed to make HEAD request to %s: %s", specificURL, err)
+		log.Debugf(ctx, "Failed to make HEAD request to %s: %s", specificURL, err)
 		goto FALLBACK
 	}
 
-	log.Printf("HEAD request for %s returns %d", specificURL, res.StatusCode)
+	log.Debugf(ctx, "HEAD request for %s returns %d", specificURL, res.StatusCode)
 	if res.StatusCode == 200 {
 		go s.cache.Set(context.Background(), cacheKey, specificURL)
-		log.Printf("HEAD request to %s was success. Redirecting to proper location", specificURL)
+		log.Debugf(ctx, "HEAD request to %s was success. Redirecting to proper location", specificURL)
 		w.Header().Add("Location", specificURL)
 		w.WriteHeader(http.StatusMovedPermanently)
 		return
 	}
 
 	go func() {
-		if err := s.StoreTransformedContent(util.RequestCtx(r), u); err != nil {
-			log.Printf("S3Backend: transformation failed: %s", err)
+		// Because this is run in a separate goroutine, we must
+		// use a different context
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		if err := s.StoreTransformedContent(ctx, u); err != nil {
+			log.Debugf(ctx, "S3Backend: transformation failed: %s", err)
 		}
 	}()
 
@@ -95,7 +102,7 @@ FALLBACK:
 }
 
 func (s *S3Backend) StoreTransformedContent(ctx context.Context, u *url.URL) error {
-	log.Printf("S3Backend: transforming image at url %s", u)
+	log.Debugf(ctx, "S3Backend: transforming image at url %s", u)
 
 	// Transformation is completely done by the transformer, so just
 	// hand it over to it
@@ -119,7 +126,7 @@ func (s *S3Backend) StoreTransformedContent(ctx context.Context, u *url.URL) err
 
 			// good, done. save it to S3
 			path := "/" + preset + u.Path
-			log.Printf("Sending PUT to S3 %s...", path)
+			log.Debugf(ctx, "Sending PUT to S3 %s...", path)
 			err := s.bucket.PutReader(path, buf, res.Size, res.ContentType, s3.PublicRead, s3.Options{})
 			if err != nil {
 				errCh <- err
@@ -152,7 +159,7 @@ func (s *S3Backend) Delete(ctx context.Context, u *url.URL) error {
 		go func(wg *sync.WaitGroup, preset string, errCh chan error) {
 			defer wg.Done()
 			path := "/" + preset + u.Path
-			log.Printf(" + DELETE S3 entry %s\n", path)
+			log.Debugf(ctx, " + DELETE S3 entry %s\n", path)
 			err := s.bucket.Del(path)
 			if err != nil {
 				errCh <- err

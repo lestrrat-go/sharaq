@@ -5,7 +5,6 @@ package sharaq
 import (
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -16,6 +15,7 @@ import (
 	apachelog "github.com/lestrrat/go-apache-logformat"
 	rotatelogs "github.com/lestrrat/go-file-rotatelogs"
 	"github.com/lestrrat/go-server-starter/listener"
+	"github.com/lestrrat/sharaq/internal/log"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
@@ -24,7 +24,7 @@ func (s *Server) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	log.Printf("Starting server %d", os.Getpid())
+	log.Debugf(ctx, "Starting server %d", os.Getpid())
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 	defer signal.Stop(sigCh)
@@ -42,7 +42,7 @@ LOOP:
 		}
 
 		if err := s.loopOnce(ctx, termLoopCh, sigCh); err != nil {
-			log.Printf("error during loop, exiting: %s", err)
+			log.Debugf(ctx, "error during loop, exiting: %s", err)
 			break LOOP
 		}
 	}
@@ -68,10 +68,10 @@ func (s *Server) loopOnce(ctx context.Context, termLoopCh chan struct{}, sigCh c
 	case sig := <-sigCh:
 		switch sig {
 		case syscall.SIGHUP:
-			log.Printf("Reload request received. Shutting down for reload...")
+			log.Debugf(ctx, "Reload request received. Shutting down for reload...")
 			newConfig := &Config{}
 			if err := newConfig.ParseFile(s.config.filename); err != nil {
-				log.Printf("Failed to reload config file %s: %s", s.config.filename, err)
+				log.Debugf(ctx, "Failed to reload config file %s: %s", s.config.filename, err)
 			} else {
 				s.config = newConfig
 				if s.config.Debug {
@@ -81,7 +81,7 @@ func (s *Server) loopOnce(ctx context.Context, termLoopCh chan struct{}, sigCh c
 			// cancel so we can bail out
 			cancel()
 		default:
-			log.Printf("Termination request received. Shutting down...")
+			log.Debugf(ctx, "Termination request received. Shutting down...")
 			close(termLoopCh)
 			return errors.New(`terminate`)
 		}
@@ -178,11 +178,11 @@ func (s *Server) serve(ctx context.Context, done chan error) {
 		var err error
 		output, err = rotatelogs.New(dl.LogFile, options...)
 		if err != nil {
-			log.Printf("Dispatcher log setup failed: %s", err)
+			log.Debugf(ctx, "Dispatcher log setup failed: %s", err)
 			done <- errors.Wrap(err, `log setup failed`)
 			return
 		}
-		log.Printf("Dispatcher logging to %s", dl.LogFile)
+		log.Debugf(ctx, "Dispatcher logging to %s", dl.LogFile)
 	}
 	srv := &http.Server{
 		Addr:    s.config.Listen,
@@ -191,14 +191,14 @@ func (s *Server) serve(ctx context.Context, done chan error) {
 
 	ln, err := makeListener(s.config.Listen)
 	if err != nil {
-		log.Printf("Error binding to listen address: %s", err)
+		log.Debugf(ctx, "Error binding to listen address: %s", err)
 		done <- errors.Wrap(err, `binding to listen address failed`)
 		return
 	}
 
 	defer ln.Close()
 
-	log.Printf("Dispatcher listening on %s", s.config.Listen)
+	log.Debugf(ctx, "Dispatcher listening on %s", s.config.Listen)
 	go srv.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)})
 
 	select {

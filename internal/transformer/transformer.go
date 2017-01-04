@@ -3,13 +3,13 @@ package transformer
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"image"
 	"image/gif"
 	"image/jpeg"
 	"image/png"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -17,6 +17,8 @@ import (
 
 	"github.com/disintegration/imaging"
 	"github.com/lestrrat/sharaq/internal/bbpool"
+	"github.com/lestrrat/sharaq/internal/log"
+	"github.com/lestrrat/sharaq/internal/util"
 	"github.com/pkg/errors"
 )
 
@@ -78,7 +80,7 @@ func (t *Transformer) Transform(options string, u string, result *Result) error 
 func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.URL.Fragment == "" {
 		// normal requests pass through
-		log.Printf("fetching remote URL: %v", req.URL)
+		log.Debugf(util.RequestCtx(req), "fetching remote URL: %v", req.URL)
 		return t.transport.RoundTrip(req)
 	}
 
@@ -323,17 +325,20 @@ var resampleFilter = imaging.Lanczos
 // encoded image in one of the supported formats (gif, jpeg, or png).  The
 // bytes of a similarly encoded image is returned.
 func transform(dst io.Writer, img io.Reader, opt Options) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	if opt.String() == emptyOptions.String() { // XXX WTF. This is bad. fix it
 		// bail if no transformation was requested
 		n, err := io.Copy(dst, img)
 		if err != nil {
 			return errors.Wrap(err, `failed to copy image`)
 		}
-		log.Printf("empty options, copied %d bytes", n)
+		log.Debugf(ctx, "empty options, copied %d bytes", n)
 		return nil
 	}
 
-	log.Printf("Transforming image with rule '%#v'", opt)
+	log.Debugf(ctx, "Transforming image with rule '%#v'", opt)
 	// decode image
 	m, format, err := image.Decode(img)
 	if err != nil {

@@ -10,7 +10,6 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
-	"log"
 	"net/http"
 	"reflect"
 	"testing"
@@ -234,14 +233,11 @@ func TestTransform(t *testing.T) {
 
 			srcbytes := src.Bytes()
 
-			log.Printf("transform")
 			if !assert.NoError(t, transform(dst, src, emptyOptions), "Transform with encoder should succeed") {
 				return
 			}
 
-			log.Printf("check equal")
 			if !assert.Equal(t, srcbytes, dst.Bytes(), "Transform with encoder %s with empty options returned modified result", tt.name) {
-				log.Printf("failed")
 				return
 			}
 		})
