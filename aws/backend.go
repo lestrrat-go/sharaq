@@ -7,10 +7,12 @@ import (
 	"sync"
 
 	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/goamz/goamz/aws"
 	"github.com/goamz/goamz/s3"
 	"github.com/lestrrat/sharaq/internal/bbpool"
+	"github.com/lestrrat/sharaq/internal/errors"
 	"github.com/lestrrat/sharaq/internal/log"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
@@ -25,6 +27,13 @@ type S3Backend struct {
 	transformer *transformer.Transformer
 }
 
+type redirectContent string
+
+func (s redirectContent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	log.Debugf(util.RequestCtx(r), "Object %s exists. Redirecting to proper location", string(s))
+	w.Header().Add("Location", string(s))
+	w.WriteHeader(http.StatusMovedPermanently)
+}
 func NewBackend(c *Config, cache *urlcache.URLCache, trans *transformer.Transformer, presets map[string]string) (*S3Backend, error) {
 	auth := aws.Auth{
 		AccessKey: c.AccessKey,
@@ -41,29 +50,11 @@ func NewBackend(c *Config, cache *urlcache.URLCache, trans *transformer.Transfor
 	}, nil
 }
 
-func (s *S3Backend) Serve(w http.ResponseWriter, r *http.Request) {
-	ctx := util.RequestCtx(r)
-
-	u, err := util.GetTargetURL(r)
-	if err != nil {
-		log.Debugf(ctx, "Bad url: %s", err)
-		http.Error(w, "Bad url", 500)
-		return
-	}
-
-	preset, err := util.GetPresetFromRequest(r)
-	if err != nil {
-		log.Debugf(ctx, "Bad preset: %s", err)
-		http.Error(w, "Bad preset", 500)
-		return
-	}
-
-	cacheKey := urlcache.MakeCacheKey("s3", preset, u.String())
+func (s *S3Backend) Get(ctx context.Context, u *url.URL, preset string) (http.Handler, error) {
+	cacheKey := urlcache.MakeCacheKey("aws", preset, u.String())
 	if cachedURL := s.cache.Lookup(ctx, cacheKey); cachedURL != "" {
 		log.Debugf(ctx, "Cached entry found for %s:%s -> %s", preset, u.String(), cachedURL)
-		w.Header().Add("Location", cachedURL)
-		w.WriteHeader(http.StatusMovedPermanently)
-		return
+		return redirectContent(cachedURL), nil
 	}
 
 	// create the proper url
@@ -72,33 +63,15 @@ func (s *S3Backend) Serve(w http.ResponseWriter, r *http.Request) {
 	log.Debugf(ctx, "Making HEAD request to %s...", specificURL)
 	res, err := http.Head(specificURL)
 	if err != nil {
-		log.Debugf(ctx, "Failed to make HEAD request to %s: %s", specificURL, err)
-		goto FALLBACK
+		return nil, errors.TransformationRequiredError{}
 	}
 
 	log.Debugf(ctx, "HEAD request for %s returns %d", specificURL, res.StatusCode)
-	if res.StatusCode == 200 {
-		go s.cache.Set(context.Background(), cacheKey, specificURL)
-		log.Debugf(ctx, "HEAD request to %s was success. Redirecting to proper location", specificURL)
-		w.Header().Add("Location", specificURL)
-		w.WriteHeader(http.StatusMovedPermanently)
-		return
+	if res.StatusCode != http.StatusOK {
+		return nil, errors.TransformationRequiredError{}
 	}
 
-	go func() {
-		// Because this is run in a separate goroutine, we must
-		// use a different context
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		if err := s.StoreTransformedContent(ctx, u); err != nil {
-			log.Debugf(ctx, "S3Backend: transformation failed: %s", err)
-		}
-	}()
-
-FALLBACK:
-	w.Header().Add("Location", u.String())
-	w.WriteHeader(http.StatusFound)
+	return redirectContent(specificURL), nil
 }
 
 func (s *S3Backend) StoreTransformedContent(ctx context.Context, u *url.URL) error {
@@ -106,13 +79,14 @@ func (s *S3Backend) StoreTransformedContent(ctx context.Context, u *url.URL) err
 
 	// Transformation is completely done by the transformer, so just
 	// hand it over to it
-	wg := &sync.WaitGroup{}
-	errCh := make(chan error, len(s.presets))
-	for preset, rule := range s.presets {
-		wg.Add(1)
-		go func(wg *sync.WaitGroup, t *transformer.Transformer, preset string, rule string, errCh chan error) {
-			defer wg.Done()
+	var grp *errgroup.Group
+	grp, ctx = errgroup.WithContext(ctx)
 
+	for preset, rule := range s.presets {
+		t := s.transformer
+		preset := preset
+		rule := rule
+		grp.Go(func() error {
 			buf := bbpool.Get()
 			defer bbpool.Release(buf)
 
@@ -120,35 +94,22 @@ func (s *S3Backend) StoreTransformedContent(ctx context.Context, u *url.URL) err
 			res.Content = buf
 
 			if err := t.Transform(rule, u.String(), &res); err != nil {
-				errCh <- err
-				return
+				return errors.Wrap(err, `failed to transform image`)
 			}
 
 			// good, done. save it to S3
 			path := "/" + preset + u.Path
 			log.Debugf(ctx, "Sending PUT to S3 %s...", path)
-			err := s.bucket.PutReader(path, buf, res.Size, res.ContentType, s3.PublicRead, s3.Options{})
-			if err != nil {
-				errCh <- err
-				return
+			if err := s.bucket.PutReader(path, buf, res.Size, res.ContentType, s3.PublicRead, s3.Options{}); err != nil {
+				return errors.Wrapf(err, `failed to write data to %s`, path)
 			}
-		}(wg, s.transformer, preset, rule, errCh)
+			cacheKey := urlcache.MakeCacheKey("gcp", preset, u.String())
+			specificURL := "http://" + s.bucketName + ".s3.amazonaws.com/" + preset + u.Path
+			s.cache.Set(ctx, cacheKey, specificURL)
+			return nil
+		})
 	}
-	wg.Wait()
-	close(errCh)
-
-	buf := bbpool.Get()
-	defer bbpool.Release(buf)
-
-	for err := range errCh {
-		fmt.Fprintf(buf, "Err: %s\n", err)
-	}
-
-	if buf.Len() > 0 {
-		return fmt.Errorf("error while transforming: %s", buf.String())
-	}
-
-	return nil
+	return grp.Wait()
 }
 
 func (s *S3Backend) Delete(ctx context.Context, u *url.URL) error {

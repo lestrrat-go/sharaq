@@ -13,11 +13,11 @@ import (
 	"github.com/lestrrat/sharaq/aws"
 	"github.com/lestrrat/sharaq/fs"
 	"github.com/lestrrat/sharaq/gcp"
+	"github.com/lestrrat/sharaq/internal/errors"
 	"github.com/lestrrat/sharaq/internal/log"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"
-	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -42,10 +42,8 @@ func NewServer(c *Config) (*Server, error) {
 		}
 	}
 
-	ctx := context.Background()
 	s.whitelist = make([]*regexp.Regexp, len(c.Whitelist))
 	for i, pat := range c.Whitelist {
-		log.Debugf(ctx, "whitelist = '%s'", pat)
 		re, err := regexp.Compile(pat)
 		if err != nil {
 			return nil, err
@@ -137,7 +135,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		s.handleFetch(w, r)
-	case "PUT":
+	case "POST":
 		s.handleStore(w, r)
 	case "DELETE":
 		s.handleDelete(w, r)
@@ -146,32 +144,66 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleFetch replies with the proper URL of the image
-func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
-	u, err := util.GetTargetURL(r)
-	if err != nil {
-		http.Error(w, `url parameter missing`, http.StatusBadRequest)
-		return
+func (s *Server) allowedTarget(u *url.URL) bool {
+	if len(s.whitelist) == 0 {
+		return true
 	}
 
-	allowed := false
-	if len(s.whitelist) == 0 {
-		allowed = true
-	} else {
-		for _, pat := range s.whitelist {
-			if pat.MatchString(u.String()) {
-				allowed = true
-				break
-			}
+	for _, pat := range s.whitelist {
+		if pat.MatchString(u.String()) {
+			return true
 		}
 	}
+	return false
+}
 
-	if !allowed {
-		http.Error(w, "Specified url not allowed", 403)
+// handleFetch replies with the proper URL of the image
+func (s *Server) handleFetch(w http.ResponseWriter, r *http.Request) {
+	ctx := util.RequestCtx(r)
+
+	u, err := util.GetTargetURL(r)
+	if err != nil {
+		log.Debugf(ctx, "Bad url: %s", err)
+		http.Error(w, "Bad url", http.StatusBadRequest)
 		return
 	}
 
-	s.backend.Serve(w, r)
+	if !s.allowedTarget(u) {
+		http.Error(w, "Specified url not allowed", http.StatusForbidden)
+		return
+	}
+
+	preset, err := util.GetPresetFromRequest(r)
+	if err != nil {
+		log.Debugf(ctx, "Bad preset: %s", err)
+		http.Error(w, "Bad preset", http.StatusBadRequest)
+		return
+	}
+
+	content, err := s.backend.Get(ctx, u, preset)
+	if err == nil {
+		content.ServeHTTP(w, r)
+		return
+	}
+
+	if !errors.IsTransformationRequired(err) {
+		log.Debugf(ctx, "failed to serve from backend: %s", err)
+		http.Error(w, "Internal server error", 500)
+		return
+	}
+
+	if err := s.deferedTransformAndStore(ctx, u); err != nil {
+		log.Debugf(ctx, "failed to transform content: %s", err)
+		http.Error(w, "Internal server error", 500)
+		return
+	}
+
+	// Serve the original file, just so that we don't return an error
+	log.Debugf(ctx, "Fallback to serving original content at %s", u)
+	w.Header().Add("Location", u.String())
+	w.WriteHeader(http.StatusFound)
+
+	return
 }
 
 func (s *Server) markProcessing(ctx context.Context, u *url.URL) error {
@@ -190,7 +222,7 @@ func (s *Server) unmarkProcessing(ctx context.Context, u *url.URL) error {
 	)
 }
 
-// handleStore accepts PUT requests to create resized images and
+// handleStore accepts POST requests to create resized images and
 // store them in the backend. This only exists so that you may perform
 // repairs for existing images: normally the GET method automatically
 // fetches and creates the resized images
@@ -207,23 +239,26 @@ func (s *Server) handleStore(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := util.RequestCtx(r)
-	// Don't process the same url while somebody else is processing it
-	if err := s.markProcessing(ctx, u); err != nil {
-		log.Debugf(ctx, "URL '%s' is being processed", u.String())
-		http.Error(w, "url is being processed", 500)
-		return
-	}
-	defer s.unmarkProcessing(ctx, u)
-
-	// start := time.Now()
-	if err := s.backend.StoreTransformedContent(ctx, u); err != nil {
+	if err := s.transformAndStore(ctx, u); err != nil {
 		log.Debugf(ctx, "Error detected while processing: %s", err)
 		http.Error(w, err.Error(), 500)
 		return
 	}
 
-	// TODO: allow configuring this later
-	// w.Header().Add("X-Sharaq-Elapsed-Time", fmt.Sprintf("%0.2f", time.Since(start).Seconds()))
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) transformAndStore(ctx context.Context, u *url.URL) error {
+	// Don't process the same url while somebody else is processing it
+	if err := s.markProcessing(ctx, u); err != nil {
+		return errors.Wrap(err, `failed to mark processing flag`)
+	}
+	defer s.unmarkProcessing(ctx, u)
+
+	if err := s.backend.StoreTransformedContent(ctx, u); err != nil {
+		return errors.Wrap(err, `failed to process content`)
+	}
+	return nil
 }
 
 // handleDelete accepts DELETE requests to delete all known resized images

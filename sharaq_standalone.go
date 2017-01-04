@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -205,4 +206,9 @@ func (s *Server) serve(ctx context.Context, done chan error) {
 	case <-ctx.Done():
 		ln.Close()
 	}
+}
+
+func (s *Server) deferedTransformAndStore(ctx context.Context, u *url.URL) error {
+	go s.transformAndStore(ctx, u)
+	return nil
 }

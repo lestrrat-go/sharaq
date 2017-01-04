@@ -26,7 +26,7 @@ type Server struct {
 }
 
 type Backend interface {
-	Serve(http.ResponseWriter, *http.Request)
+	Get(context.Context, *url.URL, string) (http.Handler, error)
 	StoreTransformedContent(context.Context, *url.URL) error
 	Delete(context.Context, *url.URL) error
 }

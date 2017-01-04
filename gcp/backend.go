@@ -13,11 +13,11 @@ import (
 	"google.golang.org/api/option"
 
 	"github.com/lestrrat/sharaq/internal/bbpool"
+	"github.com/lestrrat/sharaq/internal/errors"
 	"github.com/lestrrat/sharaq/internal/log"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"
-	"github.com/pkg/errors"
 )
 
 type StorageBackend struct {
@@ -26,6 +26,14 @@ type StorageBackend struct {
 	prefix      string
 	presets     map[string]string
 	transformer *transformer.Transformer
+}
+
+type redirectContent string
+
+func (s redirectContent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	log.Debugf(util.RequestCtx(r), "Object %s exists. Redirecting to proper location", string(s))
+	w.Header().Add("Location", string(s))
+	w.WriteHeader(http.StatusMovedPermanently)
 }
 
 func NewBackend(c *Config, cache *urlcache.URLCache, trans *transformer.Transformer, presets map[string]string) (*StorageBackend, error) {
@@ -51,60 +59,24 @@ func (s *StorageBackend) getClient(ctx context.Context) (*storage.Client, error)
 	return client, nil
 }
 
-func (s *StorageBackend) Serve(w http.ResponseWriter, r *http.Request) {
-	ctx := util.RequestCtx(r)
-
-	u, err := util.GetTargetURL(r)
-	if err != nil {
-		log.Debugf(ctx, "Bad url: %s", err)
-		http.Error(w, "Bad url", 500)
-		return
-	}
-
-	preset, err := util.GetPresetFromRequest(r)
-	if err != nil {
-		log.Debugf(ctx, "Bad preset: %s", err)
-		http.Error(w, "Bad preset", 500)
-		return
-	}
-
+func (s *StorageBackend) Get(ctx context.Context, u *url.URL, preset string) (http.Handler, error) {
 	cacheKey := urlcache.MakeCacheKey("gcp", preset, u.String())
 	if cachedURL := s.cache.Lookup(ctx, cacheKey); cachedURL != "" {
 		log.Debugf(ctx, "Cached entry found for %s:%s -> %s", preset, u.String(), cachedURL)
-		w.Header().Add("Location", cachedURL)
-		w.WriteHeader(http.StatusMovedPermanently)
-		return
+		return redirectContent(cachedURL), nil
 	}
 
 	cl, err := s.getClient(ctx)
 	if err != nil {
-		log.Debugf(ctx, `failed to create client: %s`, err)
-	} else {
-		_, err := cl.Bucket(s.bucketName).Object(s.makeStoragePath(preset, u)).Attrs(ctx)
-		if err == nil {
-			specificURL := u.Scheme + "://storage.googleapis.com/" + s.makeStoragePath(preset, u)
-			log.Debugf(ctx, "Object %s exists. Redirecting to proper location", specificURL)
-			go s.cache.Set(context.Background(), cacheKey, specificURL)
-			w.Header().Add("Location", specificURL)
-			w.WriteHeader(http.StatusMovedPermanently)
-			return
-		}
+		return nil, errors.Wrap(err, `failed to create client`)
 	}
 
-	go func() {
-		// Because this is run in a separate goroutine, we must
-		// use a different context
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+	if _, err := cl.Bucket(s.bucketName).Object(s.makeStoragePath(preset, u)).Attrs(ctx); err != nil {
+		return nil, errors.TransformationRequiredError{}
+	}
 
-		if err := s.StoreTransformedContent(ctx, u); err != nil {
-			log.Debugf(ctx, "StorageBackend: transformation failed: %s", err)
-		}
-	}()
-
-	log.Debugf(ctx, "Fallback to serving original content at %s", u)
-	w.Header().Add("Location", u.String())
-	w.WriteHeader(http.StatusFound)
+	specificURL := u.Scheme + "://storage.googleapis.com/" + s.makeStoragePath(preset, u)
+	return redirectContent(specificURL), nil
 }
 
 func (s *StorageBackend) makeStoragePath(preset string, u *url.URL) string {
@@ -162,7 +134,13 @@ func (s *StorageBackend) StoreTransformedContent(ctx context.Context, u *url.URL
 				return errors.Wrapf(err, `failed to write data to %s`, p)
 			}
 
-			return errors.Wrap(wc.Close(), `failed to properly close writer for google storage`)
+			if err := wc.Close(); err != nil {
+				return errors.Wrap(err, `failed to properly close writer for google storage`)
+			}
+			cacheKey := urlcache.MakeCacheKey("gcY", preset, u.String())
+			specificURL := u.Scheme + "://storage.googleapis.com/" + s.makeStoragePath(preset, u)
+			s.cache.Set(ctx, cacheKey, specificURL)
+			return nil
 		})
 	}
 	return grp.Wait()

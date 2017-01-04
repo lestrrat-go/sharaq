@@ -3,7 +3,6 @@ package transformer
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"fmt"
 	"image"
 	"image/gif"
@@ -20,6 +19,7 @@ import (
 	"github.com/lestrrat/sharaq/internal/log"
 	"github.com/lestrrat/sharaq/internal/util"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
 )
 
 // Transformer is based on imageproxy by Will Norris. Code was shamelessly

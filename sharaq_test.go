@@ -81,7 +81,7 @@ func TestStore(t *testing.T) {
 	}
 	defer st.Close()
 
-	req, err := http.NewRequest(http.MethodPut, st.URL, nil)
+	req, err := http.NewRequest(http.MethodPost, st.URL, nil)
 	if !assert.NoError(t, err, "http.NewRequest should succeed") {
 		return
 	}

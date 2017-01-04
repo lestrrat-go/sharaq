@@ -12,11 +12,11 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/lestrrat/sharaq/internal/bbpool"
+	"github.com/lestrrat/sharaq/internal/errors"
 	"github.com/lestrrat/sharaq/internal/log"
 	"github.com/lestrrat/sharaq/internal/transformer"
 	"github.com/lestrrat/sharaq/internal/urlcache"
 	"github.com/lestrrat/sharaq/internal/util"
-	"github.com/pkg/errors"
 )
 
 type Backend struct {
@@ -48,51 +48,27 @@ func (f *Backend) EncodeFilename(preset string, urlstr string) string {
 	return filepath.Join(f.root, util.HashedPath(preset, urlstr))
 }
 
-func (f *Backend) Serve(w http.ResponseWriter, r *http.Request) {
-	ctx := util.RequestCtx(r)
-	u, err := util.GetTargetURL(r)
-	if err != nil {
-		log.Debugf(ctx, "Bad url: %s", err)
-		http.Error(w, "Bad url", 500)
-		return
-	}
+type fileServer string
 
-	preset, err := util.GetPresetFromRequest(r)
-	if err != nil {
-		log.Debugf(ctx, "Bad preset: %s", err)
-		http.Error(w, "Bad preset", 500)
-		return
-	}
+func (s fileServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	log.Debugf(util.RequestCtx(r), "Serving file %s", s)
+	http.ServeFile(w, r, string(s))
+}
 
+func (f *Backend) Get(ctx context.Context, u *url.URL, preset string) (http.Handler, error) {
 	cacheKey := urlcache.MakeCacheKey("fs", preset, u.String())
 	if cachedFile := f.cache.Lookup(ctx, cacheKey); cachedFile != "" {
 		log.Debugf(ctx, "Cached entry found for %s:%s -> %s", preset, u.String(), cachedFile)
-		http.ServeFile(w, r, cachedFile)
-		return
+		return fileServer(cachedFile), nil
 	}
 
 	path := f.EncodeFilename(preset, u.String())
 	if _, err := os.Stat(path); err == nil {
 		// HIT. Serve this guy after filling the cache
-		f.cache.Set(ctx, cacheKey, path)
-		http.ServeFile(w, r, path)
-		return
+		return fileServer(path), nil
 	}
 
-	// transformed files are not available. Let the client received the original one
-	go func() {
-		// Because this is run in a separate goroutine, we must
-		// use a different context
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		if err := f.StoreTransformedContent(ctx, u); err != nil {
-			log.Debugf(ctx, "Backend: transformation failed: %s", err)
-		}
-	}()
-
-	w.Header().Add("Location", u.String())
-	w.WriteHeader(http.StatusFound)
+	return nil, errors.TransformationRequiredError{}
 }
 
 func (f *Backend) StoreTransformedContent(ctx context.Context, u *url.URL) error {
@@ -136,6 +112,8 @@ func (f *Backend) StoreTransformedContent(ctx context.Context, u *url.URL) error
 			if _, err := io.Copy(fh, buf); err != nil {
 				return errors.Wrapf(err, `failed to write content to %s`, path)
 			}
+			cacheKey := urlcache.MakeCacheKey("fs", preset, u.String())
+			f.cache.Set(ctx, cacheKey, path)
 			return nil
 		})
 	}
