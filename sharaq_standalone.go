@@ -72,9 +72,12 @@ func (s *Server) loopOnce(ctx context.Context, termLoopCh chan struct{}, sigCh c
 		return errors.Wrap(err, `failed to create storage backend`)
 	}
 
-	go s.serve(ctx)
+	done := make(chan error)
+	go s.serve(ctx, done)
 
 	select {
+	case err := <-done:
+		return err
 	case <-ctx.Done():
 		return errors.New(`context canceled`)
 	case sig := <-sigCh:
@@ -162,7 +165,9 @@ func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
 	return tc, nil
 }
 
-func (s *Server) serve(ctx context.Context) {
+func (s *Server) serve(ctx context.Context, done chan error) {
+	defer close(done)
+
 	var output io.Writer = os.Stdout
 	if dl := s.logConfig; dl != nil {
 		var options []rotatelogs.Option
@@ -185,7 +190,13 @@ func (s *Server) serve(ctx context.Context) {
 			options = append(options, rotatelogs.WithRotationTime(rt))
 		}
 
-		output = rotatelogs.New(dl.LogFile, options...)
+		var err error
+		output, err = rotatelogs.New(dl.LogFile, options...)
+		if err != nil {
+			log.Printf("Dispatcher log setup failed: %s", err)
+			done <- errors.Wrap(err, `log setup failed`)
+			return
+		}
 		log.Printf("Dispatcher logging to %s", dl.LogFile)
 	}
 	srv := &http.Server{
@@ -195,6 +206,7 @@ func (s *Server) serve(ctx context.Context) {
 	ln, err := makeListener(s.listenAddr)
 	if err != nil {
 		log.Printf("Error binding to listen address: %s", err)
+		done <- errors.Wrap(err, `binding to listen address failed`)
 		return
 	}
 
