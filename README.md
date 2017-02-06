@@ -197,7 +197,7 @@ In your configuration file, specify the following parameter to specify the serve
 ```json
 {
   "URLCache": {
-    "BackendType": "Redis",
+    "Type": "Redis",
     "DefaultExpires": 60
   },
   "Redis": {
@@ -213,7 +213,7 @@ In your configuration file, specify the following parameter to specify the serve
 ```json
 {
   "URLCache": {
-    "BackendType": "Memcached",
+    "Type": "Memcached",
     "DefaultExpires": 60,
     "Memcached": {
       "Addr": ["mycache:11211"]
@@ -221,6 +221,8 @@ In your configuration file, specify the following parameter to specify the serve
   }
 }
 ```
+
+Note that you if you are running under Google App Engine (GAE), you do not need to set anything other than the URLCache Type. GAE does not allow you to configure memcached servers.
 
 # ACKNOWLEDGEMENTS
 
