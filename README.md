@@ -138,6 +138,8 @@ env_variables:
   SHARAQ_WHITELIST: "whitelisting your target is recommended"
 ```
 
+For instructions on how to map `sharaq` configuration parameters to environment variables, please look at https://github.com/lestrrat/go-config/env
+
 ## File System Backend
 
 The FS backend stores all the images in a directory in the sharaq host. You probably don't want to use this except for testing and for debugging.
