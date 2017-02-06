@@ -198,7 +198,7 @@ In your configuration file, specify the following parameter to specify the serve
     "BackendType": "Redis",
     "DefaultExpires": 60
   },
-  "Redis" {
+  "Redis": {
     "Addr": ["mycache:6397"]
   }
 }
