@@ -5,9 +5,9 @@
 `sharaq` is an image transforming web server, aimed to be run on a cloud
 service provider.
 
-Given a URL to an image and a transformation specification, sharaq will serve
-a transformed version of said image. Please note that sharaq does this transformation on demand, lazily. If the requested resource has already been transformed,
-the transformed version will have already been stored in the backend storage, and that content will be served. Otherwise if the transformation has not been performed yet, sharaq will first reply with the original unmodified image. Meanwhile there will be a thread that would be performing the transformation, so that when the next request comes, the transformed version is used.
+Given a URL to an image and a transformation specification, sharaq will serve a transformed version of said image.
+
+Please note that sharaq does this transformation on demand, lazily. If the requested resource has already been transformed, the transformed version will have already been stored in the backend storage, and that content will be served. Otherwise if the transformation has not been performed yet, sharaq will first reply with the original unmodified image. Meanwhile there will be a thread that would be performing the transformation, so that when the next request comes, the transformed version is used.
 
 # DESCRIPTION
 
@@ -15,7 +15,9 @@ Suppose `http://sharaq.example.com` is the sharaq endpoint URL, and you want to 
 
 You can do this by accessing the following URL
 
-    http://sharaq.example.com/?url=http://images.example.com/foo/bar/baz.jpg&preset=small
+  http://sharaq.example.com/?url=http://images.example.com/foo/bar/baz.jpg&preset=small
+
+`preset` denotes the spec to which the image should be transformed to. This must be defined in the configuration before hand (there's no on-demand transformation).
 
 ## In Real Life / Reverse Proxy
 
