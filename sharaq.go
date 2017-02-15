@@ -21,6 +21,8 @@ import (
 	"golang.org/x/net/context"
 )
 
+const Version = "0.1.0"
+
 func NewServer(c *Config) (*Server, error) {
 	// Just so that we don't barf...
 	if c == nil {

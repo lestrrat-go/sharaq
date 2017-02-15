@@ -11,8 +11,6 @@ import (
 	"github.com/lestrrat/sharaq/internal/log"
 )
 
-const version = "0.0.8"
-
 func main() {
 	os.Exit(_main())
 }
@@ -23,7 +21,7 @@ func _main() int {
 	flag.Parse()
 
 	if *showVersion {
-		os.Stdout.WriteString("sharaq version " + version + "\n")
+		os.Stdout.WriteString("sharaq version " + sharaq.Version + "\n")
 		return 0
 	}
 
