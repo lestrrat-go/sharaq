@@ -5,6 +5,8 @@ VERSION=$(patsubst "%",%,$(lastword $(shell grep 'const Version' sharaq.go)))
 ARTIFACTS_DIR=$(CURDIR)/artifacts/$(VERSION)
 RELEASE_DIR=$(CURDIR)/release/$(VERSION)
 
+.PHONY: clean installdeps test $(GAE)/goapp appengine_test
+
 ifneq ($(GAE),)
 export PATH := $(GAE):$(PATH)
 endif
@@ -73,11 +75,11 @@ $(RELEASE_DIR)/sharaq_$(GOOS)_$(GOARCH):
 	@mkdir -p $@
 
 $(ARTIFACTS_DIR)/sharaq_$(GOOS)_$(GOARCH)/Changes: $(ARTIFACTS_DIR)/sharaq_$(GOOS)_$(GOARCH) Changes
-	@echo " * Copying Changes..."
+	@echo " * Copying Changes for $(GOOS)/$(GOARCH)"
 	@cp Changes $(ARTIFACTS_DIR)/sharaq_$(GOOS)_$(GOARCH)
 
 $(ARTIFACTS_DIR)/sharaq_$(GOOS)_$(GOARCH)/README.md: $(ARTIFACTS_DIR)/sharaq_$(GOOS)_$(GOARCH) README.md
-	@echo " * Copying README.md..."
+	@echo " * Copying README.md for $(GOOS)/$(GOARCH)"
 	@cp README.md $(ARTIFACTS_DIR)/sharaq_$(GOOS)_$(GOARCH)
 
 release-changes: $(ARTIFACTS_DIR)/sharaq_$(GOOS)_$(GOARCH)/Changes
@@ -107,11 +109,11 @@ release-tarbz: $(RELEASE_DIR)/sharaq_$(GOOS)_$(GOARCH)
 
 release-targz: $(RELEASE_DIR)/sharaq_$(GOOS)_$(GOARCH)
 	@echo " * Creating tar.gz for $(GOOS)/$(GOARCH)"
-	tar -czf $(RELEASE_DIR)/sharaq_$(GOOS)_$(GOARCH).tar.gz -C $(ARTIFACTS_DIR) sharaq_$(GOOS)_$(GOARCH)
+	@tar -czf $(RELEASE_DIR)/sharaq_$(GOOS)_$(GOARCH).tar.gz -C $(ARTIFACTS_DIR) sharaq_$(GOOS)_$(GOARCH)
 
 release-zip: $(RELEASE_DIR)/sharaq_$(GOOS)_$(GOARCH)
 	@echo " * Creating zip for $(GOOS)/$(GOARCH)"
-	cd $(ARTIFACTS_DIR) && zip -9 $(RELEASE_DIR)/sharaq_$(GOOS)_$(GOARCH).zip sharaq_$(GOOS)_$(GOARCH)/*
+	@cd $(ARTIFACTS_DIR) && zip -9 $(RELEASE_DIR)/sharaq_$(GOOS)_$(GOARCH).zip sharaq_$(GOOS)_$(GOARCH)/*
 
 release-files: release-windows-386 release-windows-amd64 release-linux-386 release-linux-amd64 release-darwin-386 release-darwin-amd64
 
@@ -121,3 +123,7 @@ release-github-token: github_token
 release-upload: release-files release-github-token
 	ghr -u $(GITHUB_USERNAME) -t $(shell cat github_token) --draft --replace $(VERSION) $(RELEASE_DIR)
 
+clean:
+	@echo "Removing release/$(VERSION) and artifacts/$(VERSION)"
+	@rm -rf $(RELEASE_DIR)
+	@rm -rf $(ARTIFACTS_DIR)
