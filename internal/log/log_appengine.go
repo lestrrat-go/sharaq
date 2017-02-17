@@ -2,6 +2,15 @@
 
 package log
 
-import "google.golang.org/appengine/log"
+import (
+	"golang.org/x/net/context"
+	"google.golang.org/appengine/log"
+)
 
-var Debugf = log.Debugf
+func Debugf(ctx context.Context, format string, args ...interface{}) {
+	log.Debugf(ctx, format, args...)
+}
+
+func Infof(ctx context.Context, format string, args ...interface{}) {
+	log.Infof(ctx, format, args...)
+}

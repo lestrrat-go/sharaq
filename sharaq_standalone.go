@@ -43,8 +43,7 @@ LOOP:
 		}
 
 		if err := s.loopOnce(ctx, termLoopCh, sigCh); err != nil {
-			log.Debugf(ctx, "error during loop, exiting: %s", err)
-			break LOOP
+			return errors.Wrap(err, "error during loop")
 		}
 	}
 	return nil

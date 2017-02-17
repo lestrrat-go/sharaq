@@ -7,44 +7,51 @@ import (
 	"flag"
 	"os"
 
+	"github.com/lestrrat/go-config/env"
 	"github.com/lestrrat/sharaq"
 	"github.com/lestrrat/sharaq/internal/log"
+	"github.com/pkg/errors"
 )
 
 func main() {
-	os.Exit(_main())
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	if err := _main(ctx); err != nil {
+		log.Infof(ctx, "%s", err)
+		os.Exit(1)
+	}
 }
 
-func _main() int {
-	cfgfile := flag.String("config", "sharaq.json", "config file")
+func _main(ctx context.Context) error {
+	cfgfile := flag.String("config", "", "config file (e.g. sharaq.json)")
 	showVersion := flag.Bool("version", false, "show sharaq version")
 	flag.Parse()
 
 	if *showVersion {
 		os.Stdout.WriteString("sharaq version " + sharaq.Version + "\n")
-		return 0
+		return nil
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	var config sharaq.Config
-	log.Debugf(ctx, "Using config file %s", *cfgfile)
-	if err := config.ParseFile(*cfgfile); err != nil {
-		log.Debugf(ctx, "Failed to parse '%s': %s", *cfgfile, err)
-		return 1
+	if cfgfile == nil || len(*cfgfile) == 0 {
+		if err := env.NewDecoder(env.System).Prefix("SHARAQ").Decode(&config); err != nil {
+			return errors.Wrap(err, "error while reading config from environment")
+		}
+	} else {
+		log.Debugf(ctx, "Using config file %s", *cfgfile)
+		if err := config.ParseFile(*cfgfile); err != nil {
+			return errors.Wrapf(err, "error while to parsing '%s'", *cfgfile)
+		}
 	}
 
 	s, err := sharaq.NewServer(&config)
 	if err != nil {
-		log.Debugf(ctx, "Failed to instantiate server: %s", err)
-		return 1
+		return errors.Wrap(err, "error while creating server")
 	}
 
 	if err := s.Run(ctx); err != nil {
-		log.Debugf(ctx, "Failed to run server: %s", err)
-		return 1
+		return errors.Wrap(err, "error while running server")
 	}
 
-	return 0
+	return nil
 }
