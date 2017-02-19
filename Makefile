@@ -4,6 +4,14 @@ GOARCH=$(word 2,$(subst /, ,$(word $(words $(GOVERSION)), $(GOVERSION))))
 VERSION=$(patsubst "%",%,$(lastword $(shell grep 'const Version' sharaq.go)))
 ARTIFACTS_DIR=$(CURDIR)/artifacts/$(VERSION)
 RELEASE_DIR=$(CURDIR)/release/$(VERSION)
+FILES=$(wildcard *.go) \
+	$(wildcard aws/*.go) \
+	$(wildcard cache/*.go) \
+	$(wildcard cmd/sharaq/*.go) \
+	$(wildcard fs/*.go) \
+	$(wildcard gae/*.go) \
+	$(wildcard gcp/*.go) \
+	$(wildcard internal/*/*.go)
 
 .PHONY: clean installdeps test $(GAE)/goapp appengine_test
 
@@ -45,7 +53,7 @@ appengine_test: $(GAE)/goapp
 $(ARTIFACTS_DIR)/sharaq_$(GOOS)_$(GOARCH):
 	@mkdir -p $@
 
-build: $(ARTIFACTS_DIR)/sharaq_$(GOOS)_$(GOARCH)/sharaq$(SUFFIX)
+build: $(FILES) $(ARTIFACTS_DIR)/sharaq_$(GOOS)_$(GOARCH)/sharaq$(SUFFIX)
 
 $(ARTIFACTS_DIR)/sharaq_$(GOOS)_$(GOARCH)/sharaq$(SUFFIX): $(ARTIFACTS_DIR)/sharaq_$(GOOS)_$(GOARCH) $(SRC_FILES)
 	@echo " * Building binary for $(GOOS)/$(GOARCH)..."
