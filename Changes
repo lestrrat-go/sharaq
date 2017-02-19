@@ -1,6 +1,16 @@
 Changes
 =======
 
+0.1.0 - Feb 19 2017 JST
+    === Complete overhaul ===
+    * Works with appengine.
+    * Works with Google Cloud Platform.
+    * Works with Redis as well as memcached.
+    * All endpoints are accepted in the same server now.
+    * Configuration can be specified via environment variables.
+    * Dependency versioning has been locked (glide).
+    * Binary releases now built with go1.8.
+
 0.0.8 - Jan 19 2015
     * Fix silly error where guardian wasn't properly initialized
     * Add URLCacheExpires config parameter to set an expiry in URLCache
