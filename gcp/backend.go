@@ -1,6 +1,8 @@
 package gcp
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -86,7 +88,13 @@ func (s *StorageBackend) makeStoragePath(preset string, u *url.URL) string {
 	if s.prefix != "" {
 		list = append(list, s.prefix)
 	}
+
 	list = append(list, preset, u.Host, u.Path)
+	if len(u.RawQuery) > 0 {
+		h := sha256.New()
+		io.WriteString(h, u.RawQuery)
+		list = append(list, fmt.Sprintf("%x", h.Sum(nil)))
+	}
 	return path.Join(list...)
 }
 
@@ -139,7 +147,7 @@ func (s *StorageBackend) StoreTransformedContent(ctx context.Context, u *url.URL
 			if err := wc.Close(); err != nil {
 				return errors.Wrap(err, `failed to properly close writer for google storage`)
 			}
-			cacheKey := urlcache.MakeCacheKey("gcY", preset, u.String())
+			cacheKey := urlcache.MakeCacheKey("gcp", preset, u.String())
 			specificURL := u.Scheme + "://storage.googleapis.com/" + s.makeStoragePath(preset, u)
 			s.cache.Set(ctx, cacheKey, specificURL)
 			return nil

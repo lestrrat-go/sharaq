@@ -44,6 +44,7 @@ func New() *Transformer {
 // the url of the target, and populates the given result object
 // if transformation was successful
 func (t *Transformer) Transform(ctx context.Context, options string, u string, result *Result) error {
+	log.Debugf(ctx, "Transforming image at %s", u)
 	if opts := ParseOptions(options); opts != emptyOptions {
 		u += "#" + opts.String()
 	}
@@ -87,6 +88,14 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	if err != nil {
 		return nil, err
 	}
+
+	if resp.StatusCode != http.StatusOK {
+		log.Debugf(ctx, "Get '%s' returned %d", u.String(), resp.StatusCode)
+		return resp, nil
+	}
+
+	log.Debugf(ctx, "Payload content type = '%s'", resp.Header.Get("content-type"))
+	log.Debugf(ctx, "Payload contains %d bytes", resp.ContentLength)
 
 	defer resp.Body.Close()
 
