@@ -21,7 +21,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-const Version = "0.1.0"
+const Version = "v0.1.0"
 
 func NewServer(c *Config) (*Server, error) {
 	// Just so that we don't barf...
@@ -48,7 +48,7 @@ func NewServer(c *Config) (*Server, error) {
 	for i, pat := range c.Whitelist {
 		re, err := regexp.Compile(pat)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrapf(err, `failed to parse '%s'`, pat)
 		}
 		s.whitelist[i] = re
 	}

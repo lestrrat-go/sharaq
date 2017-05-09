@@ -1,3 +1,4 @@
+GITHUB_USERNAME=$(notdir $(dir $(CURDIR)))
 GOVERSION=$(shell go version)
 GOOS=$(word 1,$(subst /, ,$(word $(words $(GOVERSION)), $(GOVERSION))))
 GOARCH=$(word 2,$(subst /, ,$(word $(words $(GOVERSION)), $(GOVERSION))))
@@ -126,10 +127,10 @@ release-zip: $(RELEASE_DIR)/sharaq_$(GOOS)_$(GOARCH)
 release-files: release-windows-386 release-windows-amd64 release-linux-386 release-linux-amd64 release-darwin-386 release-darwin-amd64
 
 release-github-token: github_token
-	@echo "file `github_token` is required"
+	@test -f github_token
 
 release-upload: release-files release-github-token
-	ghr -u $(GITHUB_USERNAME) -t $(shell cat github_token) --draft --replace $(VERSION) $(RELEASE_DIR)
+	@ghr -u $(GITHUB_USERNAME) -t $(shell cat github_token) --draft --replace $(VERSION) $(RELEASE_DIR)
 
 clean:
 	@echo "Removing release/$(VERSION) and artifacts/$(VERSION)"
