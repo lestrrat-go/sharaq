@@ -11,12 +11,12 @@ import (
 
 	"github.com/goamz/goamz/aws"
 	"github.com/goamz/goamz/s3"
-	"github.com/lestrrat/sharaq/internal/bbpool"
-	"github.com/lestrrat/sharaq/internal/errors"
-	"github.com/lestrrat/sharaq/internal/log"
-	"github.com/lestrrat/sharaq/internal/transformer"
-	"github.com/lestrrat/sharaq/internal/urlcache"
-	"github.com/lestrrat/sharaq/internal/util"
+	"github.com/lestrrat-go/sharaq/internal/bbpool"
+	"github.com/lestrrat-go/sharaq/internal/errors"
+	"github.com/lestrrat-go/sharaq/internal/log"
+	"github.com/lestrrat-go/sharaq/internal/transformer"
+	"github.com/lestrrat-go/sharaq/internal/urlcache"
+	"github.com/lestrrat-go/sharaq/internal/util"
 )
 
 type S3Backend struct {

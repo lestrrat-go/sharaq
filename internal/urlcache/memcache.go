@@ -1,6 +1,6 @@
 package urlcache
 
-import "github.com/lestrrat/sharaq/cache"
+import "github.com/lestrrat-go/sharaq/cache"
 
 func newMemcached(c *Config) (*URLCache, error) {
 	memd := c.Memcached

@@ -6,11 +6,11 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/lestrrat/sharaq/aws"
-	"github.com/lestrrat/sharaq/fs"
-	"github.com/lestrrat/sharaq/gcp"
-	"github.com/lestrrat/sharaq/internal/transformer"
-	"github.com/lestrrat/sharaq/internal/urlcache"
+	"github.com/lestrrat-go/sharaq/aws"
+	"github.com/lestrrat-go/sharaq/fs"
+	"github.com/lestrrat-go/sharaq/gcp"
+	"github.com/lestrrat-go/sharaq/internal/transformer"
+	"github.com/lestrrat-go/sharaq/internal/urlcache"
 	"golang.org/x/net/context"
 )
 

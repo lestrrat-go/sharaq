@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/lestrrat/sharaq/internal/urlcache"
+	"github.com/lestrrat-go/sharaq/internal/urlcache"
 )
 
 func (c *Config) ParseFile(f string) error {

@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/lestrrat/go-config/env"
-	"github.com/lestrrat/sharaq"
+	"github.com/lestrrat-go/sharaq"
 )
 
 func init() {

@@ -3,7 +3,7 @@ package cache_test
 import (
 	"testing"
 
-	"github.com/lestrrat/sharaq/cache"
+	"github.com/lestrrat-go/sharaq/cache"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 	redis "gopkg.in/redis.v5"

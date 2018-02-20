@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/lestrrat/sharaq/cache"
+	"github.com/lestrrat-go/sharaq/cache"
 	"github.com/pkg/errors"
 )
 

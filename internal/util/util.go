@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"path/filepath"
 
-	"github.com/lestrrat/sharaq/internal/crc64"
+	"github.com/lestrrat-go/sharaq/internal/crc64"
 	"github.com/pkg/errors"
 )
 

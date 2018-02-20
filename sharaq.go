@@ -10,14 +10,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lestrrat/sharaq/aws"
-	"github.com/lestrrat/sharaq/fs"
-	"github.com/lestrrat/sharaq/gcp"
-	"github.com/lestrrat/sharaq/internal/errors"
-	"github.com/lestrrat/sharaq/internal/log"
-	"github.com/lestrrat/sharaq/internal/transformer"
-	"github.com/lestrrat/sharaq/internal/urlcache"
-	"github.com/lestrrat/sharaq/internal/util"
+	"github.com/lestrrat-go/sharaq/aws"
+	"github.com/lestrrat-go/sharaq/fs"
+	"github.com/lestrrat-go/sharaq/gcp"
+	"github.com/lestrrat-go/sharaq/internal/errors"
+	"github.com/lestrrat-go/sharaq/internal/log"
+	"github.com/lestrrat-go/sharaq/internal/transformer"
+	"github.com/lestrrat-go/sharaq/internal/urlcache"
+	"github.com/lestrrat-go/sharaq/internal/util"
 	"golang.org/x/net/context"
 )
 

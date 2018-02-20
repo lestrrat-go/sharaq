@@ -7,8 +7,8 @@ import (
 	"flag"
 	"os"
 
-	"github.com/lestrrat/sharaq"
-	"github.com/lestrrat/sharaq/internal/log"
+	"github.com/lestrrat-go/sharaq"
+	"github.com/lestrrat-go/sharaq/internal/log"
 )
 
 const version = "0.0.8"

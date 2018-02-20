@@ -8,8 +8,8 @@ import (
 
 	"github.com/lestrrat/go-config/env"
 	envload "github.com/lestrrat/go-envload"
-	"github.com/lestrrat/sharaq/gcp"
-	"github.com/lestrrat/sharaq/internal/urlcache"
+	"github.com/lestrrat-go/sharaq/gcp"
+	"github.com/lestrrat-go/sharaq/internal/urlcache"
 	"github.com/stretchr/testify/assert"
 )
 

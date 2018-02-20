@@ -15,9 +15,9 @@ import (
 	"strings"
 
 	"github.com/disintegration/imaging"
-	"github.com/lestrrat/sharaq/internal/bbpool"
-	"github.com/lestrrat/sharaq/internal/log"
-	"github.com/lestrrat/sharaq/internal/util"
+	"github.com/lestrrat-go/sharaq/internal/bbpool"
+	"github.com/lestrrat-go/sharaq/internal/log"
+	"github.com/lestrrat-go/sharaq/internal/util"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )

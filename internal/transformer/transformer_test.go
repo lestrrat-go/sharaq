@@ -15,7 +15,7 @@ import (
 	"testing"
 
 	"github.com/disintegration/imaging"
-	"github.com/lestrrat/sharaq/internal/bbpool"
+	"github.com/lestrrat-go/sharaq/internal/bbpool"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
