@@ -1,11 +1,14 @@
 hash: 0eae1fd3e00243ee917d7054ed212e488e9cc9ccd8e08a57994f2c8cf1806bfd
-updated: 2018-02-27T13:21:01.014589+09:00
+updated: 2018-02-27T13:25:40.344445+09:00
 imports:
 - name: cloud.google.com/go
-  version: 3b1ae45394a234c385be014e9a488f2bb6eef821
+  version: f984a74fe52f2529092d34004dc621774ea104d1
   subpackages:
   - compute/metadata
+  - iam
   - internal
+  - internal/optional
+  - internal/version
   - storage
 - name: github.com/bradfitz/gomemcache
   version: 1952afaa557dc08e8e0d89eafab110fb501c1a2b
@@ -25,13 +28,16 @@ imports:
   - aws
   - s3
 - name: github.com/golang/protobuf
-  version: 1643683e1b54a9e88ad26d98f81400c8c9d9f4f9
+  version: bbd03ef6da3a115852eaf24c8a1c46aeb39aa175
   subpackages:
   - proto
+  - protoc-gen-go/descriptor
   - ptypes
   - ptypes/any
   - ptypes/duration
   - ptypes/timestamp
+- name: github.com/googleapis/gax-go
+  version: 317e0006254c44a0ac427cc52a0e083ff0b9622f
 - name: github.com/lestrrat-go/apache-logformat
   version: 6ecd21e939e8ef14a455588668d5c2b186dce30d
   subpackages:
@@ -69,7 +75,7 @@ imports:
   - tiff
   - tiff/lzw
 - name: golang.org/x/net
-  version: 1c05540f6879653db88113bc4a2b70aec4bd491f
+  version: cbe0f9307d0156177f9dd5dc85da1a31abc5f2fb
   subpackages:
   - context
   - context/ctxhttp
@@ -80,7 +86,7 @@ imports:
   - lex/httplex
   - trace
 - name: golang.org/x/oauth2
-  version: a6bd8cefa1811bd24b86f8902872e4e8225f74c4
+  version: d7d64896b5ff88e703f289390e3e98cd010a837e
   subpackages:
   - google
   - internal
@@ -91,7 +97,7 @@ imports:
   subpackages:
   - errgroup
 - name: golang.org/x/text
-  version: b19bf474d317b857955b12035d2c5acb57ce8b01
+  version: 27420a1a391f5504f73155051cd274311bf70883
   subpackages:
   - secure/bidirule
   - transform
@@ -108,8 +114,6 @@ imports:
   - iterator
   - option
   - storage/v1
-  - transport
-  - transport/grpc
   - transport/http
 - name: google.golang.org/appengine
   version: 5bee14b453b4c71be47ec1781b0fa61c2ea182db
@@ -123,17 +127,17 @@ imports:
   - internal/memcache
   - internal/modules
   - internal/remote_api
-  - internal/socket
   - internal/taskqueue
   - internal/urlfetch
   - log
   - memcache
-  - socket
   - taskqueue
   - urlfetch
 - name: google.golang.org/genproto
   version: 2d9486acae19cf9bd0c093d7dc236a323726a9e4
   subpackages:
+  - googleapis/api/annotations
+  - googleapis/iam/v1
   - googleapis/rpc/status
 - name: google.golang.org/grpc
   version: a1de3b2bd6b8fd77f27fe5e1c30484ab7503e84d
@@ -144,7 +148,6 @@ imports:
   - codes
   - connectivity
   - credentials
-  - credentials/oauth
   - encoding
   - encoding/proto
   - grpclb/grpc_lb_v1/messages
@@ -181,7 +184,7 @@ testImports:
 - name: github.com/lestrrat-go/envload
   version: a3eb8ddeffccdbca0eb6dd6cc7c7950c040a6546
 - name: github.com/pmezard/go-difflib
-  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  version: 792786c7400a136282c1664665ae0a8db921c6c2
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
