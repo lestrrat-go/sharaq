@@ -3,7 +3,7 @@ package bbpool
 import (
 	"bytes"
 
-	bufferpool "github.com/lestrrat/go-bufferpool"
+	bufferpool "github.com/lestrrat-go/bufferpool"
 )
 
 var pool = bufferpool.New()

@@ -13,9 +13,9 @@ import (
 	"syscall"
 	"time"
 
-	apachelog "github.com/lestrrat/go-apache-logformat"
-	rotatelogs "github.com/lestrrat/go-file-rotatelogs"
-	"github.com/lestrrat/go-server-starter/listener"
+	apachelog "github.com/lestrrat-go/apache-logformat"
+	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
+	"github.com/lestrrat-go/server-starter/listener"
 	"github.com/lestrrat-go/sharaq/internal/log"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
