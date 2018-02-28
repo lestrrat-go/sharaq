@@ -1,6 +1,8 @@
 package gcp
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"io"
 	"net/http"
 	"net/url"
@@ -82,11 +84,14 @@ func (s *StorageBackend) Get(ctx context.Context, u *url.URL, preset string) (ht
 }
 
 func (s *StorageBackend) makeStoragePath(preset string, u *url.URL) string {
+	// Create a path based on the SHA256 hash of this URL
+	h := sha256.New()
+	io.WriteString(h, u.String())
 	list := make([]string, 0, 4)
 	if s.prefix != "" {
 		list = append(list, s.prefix)
 	}
-	list = append(list, preset, u.Host, u.Path)
+	list = append(list, preset, u.Host, hex.EncodeToString(h.Sum(nil)))
 	return path.Join(list...)
 }
 

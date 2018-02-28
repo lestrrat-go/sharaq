@@ -41,7 +41,7 @@ and transform that to below when passing to the actual sharaq app
 
 ## Access Log
 
-See also: https://github.com/lestrrat/go-apache-logformat
+See also: https://github.com/lestrrat-go/apache-logformat
 
 ```json
 {
@@ -140,7 +140,7 @@ env_variables:
   SHARAQ_WHITELIST: "whitelisting your target is recommended"
 ```
 
-For instructions on how to map `sharaq` configuration parameters to environment variables, please look at [https://github.com/lestrrat/go-config/env](https://github.com/lestrrat/go-config/tree/master/env)
+For instructions on how to map `sharaq` configuration parameters to environment variables, please look at [https://github.com/lestrrat-go/config/env](https://github.com/lestrrat-go/config/tree/master/env)
 
 ## File System Backend
 

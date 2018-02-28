@@ -5,7 +5,7 @@ package sharaq
 import (
 	"net/http"
 
-	"github.com/lestrrat/go-config/env"
+	"github.com/lestrrat-go/config/env"
 	"github.com/lestrrat-go/sharaq"
 )
 
