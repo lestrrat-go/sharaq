@@ -87,7 +87,9 @@ func (t *TransformingTransport) RoundTrip(req *http.Request) (*http.Response, er
 	if err != nil {
 		return nil, err
 	}
-
+	if resp.StatusCode != http.StatusOK {
+		return resp, nil
+	}
 	defer resp.Body.Close()
 
 	img := bbpool.Get()
