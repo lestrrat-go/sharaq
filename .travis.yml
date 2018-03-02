@@ -6,15 +6,11 @@ go:
   - tip
 services:
   - redis-server
-env:
-  - GAE=.go_appengine
-  - GAE=
 cache:
   directories:
     - vendor
     - glide-$(go version | awk '{ print $NF }' | tr '/' '-')
     - .download
-    - .go_appengine
 install:
   - make installdeps
 script:
