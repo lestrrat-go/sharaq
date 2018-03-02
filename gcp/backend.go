@@ -148,7 +148,7 @@ func (s *StorageBackend) StoreTransformedContent(ctx context.Context, u *url.URL
 				return errors.Wrap(err, `failed to properly close writer for google storage`)
 			}
 			cacheKey := urlcache.MakeCacheKey("gcp", preset, u.String())
-			specificURL := u.Scheme + "://storage.googleapis.com/" + s.makeStoragePath(preset, u)
+			specificURL := u.Scheme + "://storage.googleapis.com/" + s.bucketName + "/" + s.makeStoragePath(preset, u)
 			s.cache.Set(ctx, cacheKey, specificURL, urlcache.WithExpires(10*time.Minute))
 			return nil
 		})
