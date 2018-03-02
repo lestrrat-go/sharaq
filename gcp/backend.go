@@ -4,9 +4,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"path"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"golang.org/x/net/context"
@@ -16,10 +18,10 @@ import (
 
 	"github.com/lestrrat-go/sharaq/internal/bbpool"
 	"github.com/lestrrat-go/sharaq/internal/errors"
+	"github.com/lestrrat-go/sharaq/internal/httputil"
 	"github.com/lestrrat-go/sharaq/internal/log"
 	"github.com/lestrrat-go/sharaq/internal/transformer"
 	"github.com/lestrrat-go/sharaq/internal/urlcache"
-	"github.com/lestrrat-go/sharaq/internal/util"
 )
 
 type StorageBackend struct {
@@ -28,14 +30,6 @@ type StorageBackend struct {
 	prefix      string
 	presets     map[string]string
 	transformer *transformer.Transformer
-}
-
-type redirectContent string
-
-func (s redirectContent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Debugf(util.RequestCtx(r), "Object %s exists. Redirecting to proper location", string(s))
-	w.Header().Add("Location", string(s))
-	w.WriteHeader(http.StatusMovedPermanently)
 }
 
 func NewBackend(c *Config, cache *urlcache.URLCache, trans *transformer.Transformer, presets map[string]string) (*StorageBackend, error) {
@@ -65,7 +59,16 @@ func (s *StorageBackend) Get(ctx context.Context, u *url.URL, preset string) (ht
 	cacheKey := urlcache.MakeCacheKey("gcp", preset, u.String())
 	if cachedURL := s.cache.Lookup(ctx, cacheKey); cachedURL != "" {
 		log.Debugf(ctx, "Cached entry found for %s:%s -> %s", preset, u.String(), cachedURL)
-		return redirectContent(cachedURL), nil
+		if rand.Float32() < 0.25 {
+			log.Debugf(ctx, "Random check for cached URL %s", cachedURL)
+			res, err := http.Head(cachedURL)
+			if err != nil || res.StatusCode != http.StatusOK {
+				log.Debugf(ctx, "Cached entry %s is no longer valid. Deleting", cachedURL)
+				s.cache.Delete(ctx, cacheKey)
+			}
+		}
+
+		return httputil.RedirectContent(cachedURL), nil
 	}
 
 	cl, err := s.getClient(ctx)
@@ -80,7 +83,7 @@ func (s *StorageBackend) Get(ctx context.Context, u *url.URL, preset string) (ht
 	}
 
 	specificURL := u.Scheme + "://storage.googleapis.com/" + s.bucketName + "/" + path
-	return redirectContent(specificURL), nil
+	return httputil.RedirectContent(specificURL), nil
 }
 
 func (s *StorageBackend) makeStoragePath(preset string, u *url.URL) string {
@@ -144,9 +147,9 @@ func (s *StorageBackend) StoreTransformedContent(ctx context.Context, u *url.URL
 			if err := wc.Close(); err != nil {
 				return errors.Wrap(err, `failed to properly close writer for google storage`)
 			}
-			cacheKey := urlcache.MakeCacheKey("gcY", preset, u.String())
+			cacheKey := urlcache.MakeCacheKey("gcp", preset, u.String())
 			specificURL := u.Scheme + "://storage.googleapis.com/" + s.makeStoragePath(preset, u)
-			s.cache.Set(ctx, cacheKey, specificURL)
+			s.cache.Set(ctx, cacheKey, specificURL, urlcache.WithExpires(10*time.Minute))
 			return nil
 		})
 	}

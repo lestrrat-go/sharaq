@@ -2,6 +2,7 @@ package aws
 
 import (
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"sync"
@@ -13,10 +14,10 @@ import (
 	"github.com/goamz/goamz/s3"
 	"github.com/lestrrat-go/sharaq/internal/bbpool"
 	"github.com/lestrrat-go/sharaq/internal/errors"
+	"github.com/lestrrat-go/sharaq/internal/httputil"
 	"github.com/lestrrat-go/sharaq/internal/log"
 	"github.com/lestrrat-go/sharaq/internal/transformer"
 	"github.com/lestrrat-go/sharaq/internal/urlcache"
-	"github.com/lestrrat-go/sharaq/internal/util"
 )
 
 type S3Backend struct {
@@ -27,13 +28,6 @@ type S3Backend struct {
 	transformer *transformer.Transformer
 }
 
-type redirectContent string
-
-func (s redirectContent) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	log.Debugf(util.RequestCtx(r), "Object %s exists. Redirecting to proper location", string(s))
-	w.Header().Add("Location", string(s))
-	w.WriteHeader(http.StatusMovedPermanently)
-}
 func NewBackend(c *Config, cache *urlcache.URLCache, trans *transformer.Transformer, presets map[string]string) (*S3Backend, error) {
 	auth := aws.Auth{
 		AccessKey: c.AccessKey,
@@ -54,7 +48,16 @@ func (s *S3Backend) Get(ctx context.Context, u *url.URL, preset string) (http.Ha
 	cacheKey := urlcache.MakeCacheKey("aws", preset, u.String())
 	if cachedURL := s.cache.Lookup(ctx, cacheKey); cachedURL != "" {
 		log.Debugf(ctx, "Cached entry found for %s:%s -> %s", preset, u.String(), cachedURL)
-		return redirectContent(cachedURL), nil
+		if rand.Float32() < 0.25 {
+			log.Debugf(ctx, "Random check for cached URL %s", cachedURL)
+			res, err := http.Head(cachedURL)
+			if err != nil || res.StatusCode != http.StatusOK {
+				log.Debugf(ctx, "Cached entry %s is no longer valid. Deleting", cachedURL)
+				s.cache.Delete(ctx, cacheKey)
+			}
+		}
+
+		return httputil.RedirectContent(cachedURL), nil
 	}
 
 	// create the proper url
@@ -71,7 +74,7 @@ func (s *S3Backend) Get(ctx context.Context, u *url.URL, preset string) (http.Ha
 		return nil, errors.TransformationRequiredError{}
 	}
 
-	return redirectContent(specificURL), nil
+	return httputil.RedirectContent(specificURL), nil
 }
 
 func (s *S3Backend) StoreTransformedContent(ctx context.Context, u *url.URL) error {
